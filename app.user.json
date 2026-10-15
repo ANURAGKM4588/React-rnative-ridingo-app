@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Ridingo",
+    "slug": "ridingo-user",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./public/App icon.png",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.ridingo.user",
+      "adaptiveIcon": {
+        "foregroundImage": "./public/App icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.ridingo.user",
+      "supportsTablet": true
+    },
+    "extra": {
+      "appVariant": "user"
+    }
+  }
+}

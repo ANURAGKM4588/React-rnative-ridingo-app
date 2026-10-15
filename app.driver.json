@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Ridingo Driver",
+    "slug": "ridingo-driver",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./public/App icon.png",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.ridingo.driver",
+      "adaptiveIcon": {
+        "foregroundImage": "./public/App icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.ridingo.driver",
+      "supportsTablet": true
+    },
+    "extra": {
+      "appVariant": "driver"
+    }
+  }
+}
