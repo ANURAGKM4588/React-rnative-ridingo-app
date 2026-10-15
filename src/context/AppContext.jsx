@@ -1,0 +1,1325 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { App as CapApp } from '@capacitor/app';
+import { StatusBar } from '@capacitor/status-bar';
+import { getDeviceLocation } from '../lib/deviceLocation';
+import { processPhonePeCashbackTransfer } from '../utils/phonepe';
+import { realtime } from '../utils/realtime';
+import { notifyIncomingRideRequest } from '../services/driverNotificationService';
+import { isUserTrip, generateRidingoUserId } from '../services/userService';
+
+const AppContext = createContext(null);
+
+export const DEFAULT_USER = {
+  id: 'RDU-10001',
+  userId: 'RDU-10001',
+  name: 'Arjun Menon',
+  phone: '+91 98401 23456',
+  email: 'arjun.menon@example.com',
+  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+  notif: true,
+  pin: true,
+  pinCode: '4821',
+  liveShare: true,
+  quiet: false,
+  acTemp: '22°C',
+  acMode: 'Chill',
+  acPrecool: true,
+  whatsapp: true,
+  promo: true,
+  sosContacts: [{ name: 'Priya Menon', relation: 'Spouse', phone: '+91 98401 98765' }],
+  insuranceTier: 'standard',
+  nominee: { name: 'Priya Menon', relation: 'Spouse' },
+  languages: ['English', 'Hindi', 'Malayalam'],
+  quietCabin: true,
+  maskNumber: true,
+  locPrivacy: true
+};
+
+export const DEFAULT_DRIVER = {
+  name: 'Ravi Kumar',
+  phone: '+91 94471 23456',
+  email: 'ravi.kumar@ridingo.partner',
+  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+  rating: 5.0,
+  tripsCount: 0,
+  bankName: 'HDFC Bank',
+  bankAccount: '•••• 4521',
+  upiId: 'ravi.kumar@okhdfcbank',
+  dlNumber: 'KL-07-20160049281',
+  badgeNumber: 'KL-07-2024-CH08',
+  experienceYears: 8,
+  services: {
+    hourly: true,
+    daily: true,
+    airport: true,
+    outstation: true,
+    event: true
+  },
+  transmissions: {
+    manual: true,
+    automatic: true,
+    imt: true
+  },
+  blackMarks: 0,
+  popups: true,
+  sound: true,
+  autoQueue: false,
+  biometric: true,
+  haptic: true
+};
+
+export const INITIAL_TRIPS = [];
+
+export const INITIAL_UTX = [];
+
+export const INITIAL_UNOTES = [
+  {
+    id: 'notif-promo',
+    ts: Date.now() - 1000 * 60 * 5,
+    title: 'Weekend Chauffeur Pass · 20% Cashback',
+    body: 'Get ₹250 instant cashback credited to your Ridingo Wallet on full-day or outstation bookings this weekend. Use code RIDE20.',
+    icon: 'star',
+    category: 'promo',
+    read: false
+  },
+  {
+    id: 'notif-pay',
+    ts: Date.now() - 1000 * 60 * 25,
+    title: 'Payment Successful · ₹600 Paid',
+    body: 'Trip payment completed via PhonePe UPI. Zero commission deducted. Your tax invoice #RID-8842 has been generated.',
+    icon: 'card',
+    category: 'payment',
+    read: false
+  },
+  {
+    id: 'notif-complete',
+    ts: Date.now() - 1000 * 60 * 45,
+    title: 'Trip Completed · Vehicle Handed Over',
+    body: 'Chauffeur Rajesh K. parked your vehicle safely and returned keys at Lulu Mall. Tap to rate your chauffeur’s driving skills.',
+    icon: 'check',
+    category: 'trip_complete',
+    read: true
+  },
+  {
+    id: 'notif-start',
+    ts: Date.now() - 1000 * 60 * 90,
+    title: 'Trip Started · Safe Driving Active',
+    body: 'Start OTP verified. Rajesh is driving your car. Live telemetry and SOS tracking are active and shared with your emergency contact.',
+    icon: 'route',
+    category: 'trip_start',
+    read: true
+  },
+  {
+    id: 'notif-arrival',
+    ts: Date.now() - 1000 * 60 * 110,
+    title: 'Chauffeur Arrived at Your Car',
+    body: 'Rajesh K. is waiting at Edappally Toll. Share Start OTP 4821 before handing over your keys.',
+    icon: 'pin',
+    category: 'driver_arrival',
+    read: true
+  },
+  {
+    id: 'notif-confirm',
+    ts: Date.now() - 1000 * 60 * 130,
+    title: 'Booking Confirmed · Chauffeur Assigned',
+    body: 'Rajesh K. (Rating 4.9 · 850+ drives) has accepted your Hourly Chauffeur booking. Reaching your car in 12 mins.',
+    icon: 'bell',
+    category: 'booking_confirm',
+    read: true
+  }
+];
+
+export function AppProvider({ children }) {
+  // User state: null on fresh install or logged out
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ridingo_user_session');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  // Driver Partner state: null on fresh install or logged out
+  const [driverPartner, setDriverPartner] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ridingo_driver_session');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  // App navigation state (User App or Driver App)
+  const determineView = () => {
+    if (typeof window !== 'undefined') {
+      const search = window.location.search.toLowerCase();
+      const path = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      const port = window.location.port;
+
+      if (
+        window.RIDINGO_TARGET === 'driver' ||
+        port === '5174' ||
+        search.includes('app=driver') ||
+        search.includes('view=driver') ||
+        path.includes('/driver') ||
+        hash.includes('driver') ||
+        (typeof document !== 'undefined' && document.body?.classList?.contains('standalone-driver'))
+      ) {
+        return 'driver';
+      }
+      if (
+        window.RIDINGO_TARGET === 'user' ||
+        port === '5173' ||
+        search.includes('app=user') ||
+        search.includes('view=user') ||
+        path.includes('/user') ||
+        hash.includes('user') ||
+        (typeof document !== 'undefined' && document.body?.classList?.contains('standalone-user'))
+      ) {
+        return 'user';
+      }
+    }
+    return 'user';
+  };
+
+  const [view, setView] = useState(determineView);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleUrlChange = () => {
+      const detected = determineView();
+      setView(detected);
+    };
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.add('standalone-app');
+      document.body.classList.add('standalone-app');
+      if (view === 'driver') {
+        document.documentElement.classList.add('standalone-driver');
+        document.documentElement.classList.remove('standalone-user');
+        document.body.classList.add('standalone-driver');
+        document.body.classList.remove('standalone-user');
+      } else {
+        document.documentElement.classList.add('standalone-user');
+        document.documentElement.classList.remove('standalone-driver');
+        document.body.classList.add('standalone-user');
+        document.body.classList.remove('standalone-driver');
+      }
+    }
+  }, [view]);
+  const [uTab, setUTab] = useState('home'); // 'home' | 'history' | 'wallet' | 'profile'
+  const [dTab, setDTab] = useState('dash');
+  const [tripsFilter, setTripsFilter] = useState('all');
+  const [bookingOpen, setBookingOpen] = useState(false);
+  const [bookingCategory, setBookingCategory] = useState('hourly');
+  const [bookingDestination, setBookingDestination] = useState('');
+  const [notifsOpen, setNotifsOpen] = useState(false);
+  const [liveTrackingOpen, setLiveTrackingOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ridingo_user_session');
+      return !saved;
+    } catch (e) {
+      return true;
+    }
+  });
+  const [driverOnboardingOpen, setDriverOnboardingOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ridingo_driver_session');
+      return !saved;
+    } catch (e) {
+      return true;
+    }
+  });
+  const [legalModal, setLegalModal] = useState({ open: false, tab: 'terms' });
+
+  const openLegal = (tab = 'terms') => setLegalModal({ open: true, tab });
+  const closeLegal = () => setLegalModal(prev => ({ ...prev, open: false }));
+
+  const [trips, setTrips] = useState([]);
+  const [activeTrackingTripId, setActiveTrackingTripId] = useState(null);
+  const [utx, setUtx] = useState(INITIAL_UTX);
+  const [unotes, setUnotes] = useState(INITIAL_UNOTES);
+  const [driverOnline, setDriverOnline] = useState(true);
+  const [incomingTripRequest, setIncomingTripRequest] = useState(null);
+  const [driverBalance, setDriverBalance] = useState(0);
+  const [driverTx, setDriverTx] = useState([]);
+  const [toasts, setToasts] = useState([]);
+
+  // Helper to map Supabase public.trips database row to App Trip Object
+  const mapSupabaseRowToTrip = (row) => {
+    if (!row) return null;
+    const carObj = row.car || {};
+    return {
+      id: row.id,
+      cat: row.cat || 'hourly',
+      qty: Number(row.qty) || 2,
+      pickup: row.pickup || 'Pickup Location',
+      drop_loc: row.drop_loc || 'Drop Location',
+      trans: carObj.trans || row.trans || 'Automatic',
+      car: {
+        model: carObj.model || 'Sedan',
+        trans: carObj.trans || row.trans || 'Automatic',
+        plate: carObj.plate || 'KL 07 AB 4821',
+        ...carObj
+      },
+      when_ts: Number(row.when_ts) || Date.now(),
+      scheduledDate: carObj.scheduledDate || null,
+      scheduledTime: carObj.scheduledTime || null,
+      scheduleDisplay: carObj.scheduledDate ? `${carObj.scheduledDate} · ${carObj.scheduledTime}` : 'Immediate Pickup',
+      fare: Number(row.fare) || 600,
+      advance: Number(row.advance) || 180,
+      status: row.status || 'requested',
+      startOtp: carObj.startOtp || row.startOtp || '4821',
+      endOtp: carObj.endOtp || row.endOtp || '8392',
+      conditionPhotos: row.conditionPhotos || { front: null, left: null, back: null, top: null },
+      conditionScratches: row.conditionScratches || [],
+      conditionNotes: '',
+      conditionVerified: !!row.conditionVerified,
+      paymentGateway: 'PhonePe',
+      paymentId: row.paymentId || 'pay_ppe_' + row.id,
+      driver: row.driver || null,
+      rider: row.rider || { name: 'Customer', phone: '+91 98401 23456' },
+      cashback: Number(row.cashback) || 20,
+      cashbackStatus: row.status === 'completed' ? 'credited' : 'pending',
+      pickupCoords: carObj.pickupCoords || null,
+      dropCoords: carObj.dropCoords || null
+    };
+  };
+
+  // Sync trips from Supabase database table (bridges sandboxed iOS apps)
+  const syncTripsFromSupabase = async () => {
+    try {
+      if (!supabase || typeof supabase.from !== 'function') return;
+      const { data, error } = await supabase
+        .from('trips')
+        .select('*')
+        .order('when_ts', { ascending: false })
+        .limit(25);
+
+      if (!error && Array.isArray(data) && data.length > 0) {
+        const mapped = data.map(mapSupabaseRowToTrip).filter(Boolean);
+        setTrips(prev => {
+          const mapById = new Map();
+          prev.forEach(t => mapById.set(t.id, t));
+          mapped.forEach(t => {
+            if (mapById.has(t.id)) {
+              mapById.set(t.id, { ...mapById.get(t.id), ...t });
+            } else {
+              mapById.set(t.id, t);
+            }
+          });
+          return Array.from(mapById.values());
+        });
+
+        // Check for active 'requested' trips created within 15 minutes
+        const activeReqs = mapped.filter(t => t.status === 'requested' && Math.abs(Date.now() - t.when_ts) < 15 * 60 * 1000);
+        if (activeReqs.length > 0) {
+          setIncomingTripRequest(prev => {
+            if (!prev || !activeReqs.some(r => r.id === prev.id)) {
+              return activeReqs[0];
+            }
+            return prev;
+          });
+        } else {
+          // If the pending request was accepted or declined in Supabase, clear it
+          setIncomingTripRequest(prev => {
+            if (prev && mapped.some(t => t.id === prev.id && t.status !== 'requested')) {
+              return null;
+            }
+            return prev;
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[Supabase] Sync trips error:', err);
+    }
+  };
+
+  // Subscribe to real-time communication between User and Driver apps
+  useEffect(() => {
+    // 1. Initial sync from Supabase database
+    syncTripsFromSupabase();
+
+    // 2. Continuous 3.5s polling loop to guarantee sandboxed iOS app sync
+    const pollInterval = setInterval(() => {
+      syncTripsFromSupabase();
+    }, 3500);
+
+    const unbindReq = realtime.on('TRIP_REQUESTED', (newTrip) => {
+      setTrips(prev => {
+        const exists = prev.some(t => t.id === newTrip.id);
+        if (exists) {
+          return prev.map(t => (t.id === newTrip.id ? { ...t, ...newTrip } : t));
+        }
+        return [newTrip, ...prev]; // Preserve all existing requests!
+      });
+      setIncomingTripRequest(newTrip);
+      setDriverOnline(true);
+      // Trigger native OS push notification for Driver App
+      if (typeof window !== 'undefined' && (window.RIDINGO_TARGET === 'driver' || view === 'driver')) {
+        try {
+          notifyIncomingRideRequest(newTrip);
+        } catch (e) {}
+      }
+    });
+
+    // 4. Instant push sync via Supabase Realtime publication on public.trips table
+    let pgChannel = null;
+    try {
+      if (supabase && typeof supabase.channel === 'function') {
+        pgChannel = supabase
+          .channel('public-trips-db-changes')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'trips' },
+            (payload) => {
+              console.info('[Supabase Realtime] Database change:', payload.eventType, payload.new?.id);
+              if (payload.new) {
+                const tripObj = mapSupabaseRowToTrip(payload.new);
+                if (tripObj) {
+                  setTrips(prev => {
+                    const exists = prev.some(t => t.id === tripObj.id);
+                    if (exists) {
+                      return prev.map(t => (t.id === tripObj.id ? { ...t, ...tripObj } : t));
+                    }
+                    return [tripObj, ...prev]; // Preserve all existing requests!
+                  });
+
+                  if (tripObj.status === 'requested') {
+                    setIncomingTripRequest(tripObj);
+                    if (typeof window !== 'undefined' && (window.RIDINGO_TARGET === 'driver' || view === 'driver')) {
+                      try { notifyIncomingRideRequest(tripObj); } catch (e) {}
+                    }
+                  } else if (['accepted', 'declined', 'completed'].includes(tripObj.status)) {
+                    setIncomingTripRequest(prev => (prev?.id === tripObj.id ? null : prev));
+                  }
+                }
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.info('[Supabase Realtime] postgres_changes status:', status);
+          });
+      }
+    } catch (err) {
+      console.warn('[Supabase Realtime] Listener error:', err);
+    }
+
+    // App state resume listener for background sync (when user switches to Driver App on same device)
+    let appStateHandle = null;
+    try {
+      CapApp.addListener('appStateChange', (state) => {
+        if (state.isActive) {
+          realtime.reconnect();
+          syncTripsFromSupabase();
+        }
+      }).then(h => { appStateHandle = h; });
+    } catch (e) {}
+
+    const onVisChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncTripsFromSupabase();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisChange);
+
+    const unbindAcc = realtime.on('TRIP_ACCEPTED', ({ tripId, driver }) => {
+      const driverName = driver?.name || 'Ravi Kumar';
+      let targetOtp = '4821';
+      setTrips(prev =>
+        prev.map(t => {
+          if (t.id === tripId) {
+            targetOtp = t.startOtp || targetOtp;
+            return { ...t, status: 'accepted', driver: driverName };
+          }
+          return t;
+        })
+      );
+      setIncomingTripRequest(prev => (prev?.id === tripId ? null : prev));
+      addNotification(
+        'Chauffeur Assigned',
+        `${driverName} is on the way to your pickup. Share Pickup OTP: ${targetOtp} upon arrival.`,
+        'car'
+      );
+      addToast(`Chauffeur confirmed. ${driverName} accepted your ride.`, 'check');
+    });
+
+    const unbindArr = realtime.on('ARRIVED_PICKUP', ({ tripId }) => {
+      let targetOtp = '4821';
+      setTrips(prev =>
+        prev.map(t => {
+          if (t.id === tripId) {
+            targetOtp = t.startOtp || targetOtp;
+            return { ...t, status: 'pickup_arrived' };
+          }
+          return t;
+        })
+      );
+      addNotification(
+        'Chauffeur Arrived at Pickup',
+        `Your chauffeur is at your pickup location. Please share your 4-digit OTP: ${targetOtp}.`,
+        'car'
+      );
+      addToast('Chauffeur has arrived at pickup location.', 'info');
+    });
+
+    const unbindOtp1 = realtime.on('START_OTP_VERIFIED', ({ tripId }) => {
+      setTrips(prev =>
+        prev.map(t => (t.id === tripId ? { ...t, status: 'ready_to_start' } : t))
+      );
+      addToast('Pickup OTP verified. Trip ready to start.', 'check');
+    });
+
+    const unbindCond = realtime.on('CONDITION_VERIFIED', ({ tripId, photos, scratches }) => {
+      setTrips(prev =>
+        prev.map(t => (t.id === tripId ? { ...t, status: 'ready_to_start', conditionPhotos: photos, conditionScratches: scratches } : t))
+      );
+      addToast('Vehicle condition check verified.', 'check');
+    });
+
+    const unbindStart = realtime.on('TRIP_STARTED', ({ tripId }) => {
+      setTrips(prev =>
+        prev.map(t => (t.id === tripId ? { ...t, status: 'inprogress', startedAt: Date.now() } : t))
+      );
+      addNotification(
+        'Trip in Progress',
+        'Your chauffeur has started the trip. Live GPS route tracking is active.',
+        'map'
+      );
+      addToast('Trip started. Live tracking active.', 'check');
+    });
+
+    const unbindEndReq = realtime.on('END_OTP_REQUESTED', ({ tripId, endOtp }) => {
+      let targetOtp = endOtp || '8392';
+      setTrips(prev =>
+        prev.map(t => {
+          if (t.id === tripId) {
+            targetOtp = t.endOtp || targetOtp;
+            return { ...t, status: 'ending_otp' };
+          }
+          return t;
+        })
+      );
+      addNotification(
+        'Arrived at Destination',
+        `Trip ending. Please share Drop OTP: ${targetOtp} with your chauffeur to complete.`,
+        'flag'
+      );
+      addToast(`Arrived at destination. Share Drop OTP ${targetOtp} to finalize.`, 'info');
+    });
+
+    const unbindDec = realtime.on('TRIP_DECLINED', ({ tripId }) => {
+      setIncomingTripRequest(prev => (prev?.id === tripId ? null : prev));
+    });
+
+    const unbindComp = realtime.on('TRIP_COMPLETED', ({ tripId }) => {
+      setTrips(prev =>
+        prev.map(t => (t.id === tripId ? { ...t, status: 'completed' } : t))
+      );
+      addNotification(
+        'Trip Completed',
+        'Thank you for riding with Ridingo. Your digital invoice has been settled.',
+        'check'
+      );
+    });
+
+    return () => {
+      clearInterval(pollInterval);
+      document.removeEventListener('visibilitychange', onVisChange);
+      if (appStateHandle && typeof appStateHandle.remove === 'function') {
+        appStateHandle.remove();
+      }
+      if (pgChannel && typeof supabase.removeChannel === 'function') {
+        try { supabase.removeChannel(pgChannel); } catch (e) {}
+      }
+      unbindReq();
+      unbindAcc();
+      unbindArr();
+      unbindOtp1();
+      unbindCond();
+      unbindStart();
+      unbindEndReq();
+      unbindDec();
+      unbindComp();
+    };
+  }, []);
+
+  const markAllNotifsRead = () => {
+    setUnotes(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const markNotifRead = (id) => {
+    setUnotes(prev => prev.map(n => (n.id === id ? { ...n, read: true } : n)));
+  };
+
+  const deleteNotif = (id) => {
+    setUnotes(prev => prev.filter(n => n.id !== id));
+  };
+
+  const clearAllNotifs = () => {
+    setUnotes([]);
+  };
+
+  const addNotification = (title, body, icon = 'bell') => {
+    const newNote = {
+      id: 'notif-' + Date.now(),
+      ts: Date.now(),
+      title,
+      body,
+      icon,
+      read: false
+    };
+    setUnotes(prev => [newNote, ...prev]);
+  };
+
+  // Toast helper
+  const addToast = (msg, icon = 'check') => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, msg, icon }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3200);
+  };
+
+  // Separate theme states: User App & Driver App are independent apps
+  const [userTheme, setUserTheme] = useState(() => {
+    try {
+      return localStorage.getItem('ridingo_user_theme') || localStorage.getItem('ridingo_theme_pref') || 'light';
+    } catch (e) {
+      return 'light';
+    }
+  });
+
+  const [driverTheme, setDriverTheme] = useState(() => {
+    try {
+      return localStorage.getItem('ridingo_driver_theme') || 'light';
+    } catch (e) {
+      return 'light';
+    }
+  });
+
+  // Track system OS color scheme preference
+  const [systemIsDark, setSystemIsDark] = useState(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleMediaChange = (e) => setSystemIsDark(e.matches);
+    media.addEventListener?.('change', handleMediaChange);
+    return () => media.removeEventListener?.('change', handleMediaChange);
+  }, []);
+
+  const userThemeVal = userTheme === 'system' ? (systemIsDark ? 'dark' : 'light') : userTheme;
+  const driverThemeVal = driverTheme === 'system' ? (systemIsDark ? 'dark' : 'light') : driverTheme;
+
+  // Persist userTheme
+  useEffect(() => {
+    try {
+      localStorage.setItem('ridingo_user_theme', userTheme);
+      localStorage.setItem('ridingo_theme_pref', userTheme);
+    } catch (e) {}
+  }, [userTheme]);
+
+  // Persist driverTheme
+  useEffect(() => {
+    try {
+      localStorage.setItem('ridingo_driver_theme', driverTheme);
+    } catch (e) {}
+  }, [driverTheme]);
+
+  // Pre-warm real device GPS location in background
+  useEffect(() => {
+    getDeviceLocation(false).catch(() => {});
+  }, []);
+
+  // Backward compatibility alias for single theme
+  const theme = view === 'driver' ? driverTheme : userTheme;
+  const setTheme = (val) => {
+    if (view === 'driver') {
+      setDriverTheme(val);
+    } else {
+      setUserTheme(val);
+    }
+  };
+
+  // Sync root (document.documentElement / Capacitor) for standalone view or active tab
+  useEffect(() => {
+    try {
+      const isStandaloneDriver = typeof document !== 'undefined' && (
+        document.body?.classList?.contains('standalone-driver') ||
+        window.location.search.includes('app=driver')
+      );
+      const activeThemeVal = (isStandaloneDriver || view === 'driver') ? driverThemeVal : userThemeVal;
+      const isDark = activeThemeVal === 'dark';
+
+      document.documentElement.setAttribute('data-theme', activeThemeVal);
+      document.documentElement.style.colorScheme = activeThemeVal;
+      document.body.setAttribute('data-theme', activeThemeVal);
+
+      // Meta theme-color strictly matches app background color (var(--surface))
+      const appBgColor = isDark ? '#0D0E12' : '#F2F2F7';
+      const metaTheme = document.querySelector('meta[name="theme-color"]');
+      if (metaTheme) {
+        metaTheme.setAttribute('content', appBgColor);
+      }
+
+      // Capacitor StatusBar strictly matches app background
+      if (window.Capacitor?.isPluginAvailable('StatusBar')) {
+        StatusBar.setStyle({ style: isDark ? 'DARK' : 'LIGHT' }).catch(() => {});
+        StatusBar.setBackgroundColor({ color: appBgColor }).catch(() => {});
+        StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
+      }
+    } catch (e) {}
+  }, [userThemeVal, driverThemeVal, view]);
+
+  // Capacitor Android Back Button handler
+  useEffect(() => {
+    let backListener = null;
+    try {
+      if (window.Capacitor?.isPluginAvailable('App')) {
+        CapApp.addListener('backButton', ({ canGoBack }) => {
+          if (bookingOpen) {
+            setBookingOpen(false);
+          } else if (liveTrackingOpen) {
+            setLiveTrackingOpen(false);
+          } else if (notifsOpen) {
+            setNotifsOpen(false);
+          } else if (onboardingOpen) {
+            setOnboardingOpen(false);
+          } else if (uTab !== 'home') {
+            setUTab('home');
+          } else if (canGoBack) {
+            window.history.back();
+          } else {
+            CapApp.exitApp();
+          }
+        }).then(h => {
+          backListener = h;
+        }).catch(() => {});
+      }
+    } catch (e) {}
+
+    return () => {
+      if (backListener && typeof backListener.remove === 'function') {
+        backListener.remove();
+      }
+    };
+  }, [bookingOpen, onboardingOpen, uTab]);
+
+  const scrollUserToTop = () => {
+    if (typeof document !== 'undefined') {
+      const el = document.getElementById('u-content');
+      if (el) el.scrollTop = 0;
+      window.requestAnimationFrame(() => {
+        const el2 = document.getElementById('u-content');
+        if (el2) el2.scrollTop = 0;
+      });
+    }
+  };
+
+  const scrollDriverToTop = () => {
+    if (typeof document !== 'undefined') {
+      const el = document.getElementById('d-content');
+      if (el) el.scrollTop = 0;
+      window.requestAnimationFrame(() => {
+        const el2 = document.getElementById('d-content');
+        if (el2) el2.scrollTop = 0;
+      });
+    }
+  };
+
+  // User session sync
+  const loginDemo = () => {
+    setUser(DEFAULT_USER);
+    try {
+      localStorage.setItem('ridingo_user_session', JSON.stringify(DEFAULT_USER));
+      localStorage.setItem('ridingo_has_onboarded', 'true');
+    } catch (e) {}
+    setUTab('home');
+    scrollUserToTop();
+    setOnboardingOpen(false);
+    addToast('Signed in as Arjun Menon', 'check');
+  };
+
+  const loginWithDetails = (userData = {}) => {
+    const isGoogle = userData.provider === 'google' || !!userData.idToken;
+    const computedName = userData.name || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : 'Ridingo Member');
+    const ridingoId = userData.userId || userData.id || generateRidingoUserId();
+    const updated = {
+      ...DEFAULT_USER,
+      ...userData,
+      id: ridingoId,
+      userId: ridingoId,
+      name: computedName,
+      firstName: userData.firstName || computedName.split(' ')[0],
+      lastName: userData.lastName || (computedName.split(' ').slice(1).join(' ') || ''),
+      email: userData.email !== undefined ? userData.email : (isGoogle ? '' : ''),
+      avatar: userData.avatar || DEFAULT_USER.avatar,
+      phone: userData.phone
+        ? (userData.phone.startsWith('+91') ? userData.phone : `+91 ${userData.phone}`)
+        : (userData.authMethod === 'phone' ? '' : ''),
+      emergencyPhone: userData.emergencyPhone || '',
+      isAuthenticated: true,
+      isDemo: false,
+      authProvider: userData.provider || (isGoogle ? 'google' : (userData.authMethod || 'phone'))
+    };
+    setUser(updated);
+    try {
+      localStorage.setItem('ridingo_user_session', JSON.stringify(updated));
+      localStorage.setItem('ridingo_has_onboarded', 'true');
+    } catch (e) {}
+    setUTab('home');
+    scrollUserToTop();
+    setOnboardingOpen(false);
+    addToast(`Welcome, ${updated.firstName || updated.name || 'User'}!`, 'check');
+  };
+
+  const updateUserProfile = (updates) => {
+    setUser(prev => {
+      const next = { ...(prev || DEFAULT_USER), ...updates };
+      try {
+        localStorage.setItem('ridingo_user_session', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  };
+
+  const updateDriverPartner = (updates) => {
+    setDriverPartner(prev => {
+      const next = { ...(prev || DEFAULT_DRIVER), ...updates };
+      try {
+        localStorage.setItem('ridingo_driver_session', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  };
+
+  const loginDriverDemo = () => {
+    setDriverPartner(DEFAULT_DRIVER);
+    try {
+      localStorage.setItem('ridingo_driver_session', JSON.stringify(DEFAULT_DRIVER));
+    } catch (e) {}
+    setDTab('dash');
+    scrollDriverToTop();
+    setDriverOnboardingOpen(false);
+    addToast('Signed in as Ravi Kumar (Demo)', 'check');
+  };
+
+  const loginDriverWithDetails = (driverData = {}) => {
+    const updated = {
+      ...DEFAULT_DRIVER,
+      ...driverData,
+      phone: driverData.phone
+        ? driverData.phone.startsWith('+91') ? driverData.phone : `+91 ${driverData.phone}`
+        : DEFAULT_DRIVER.phone
+    };
+    setDriverPartner(updated);
+    try {
+      localStorage.setItem('ridingo_driver_session', JSON.stringify(updated));
+    } catch (e) {}
+    setDTab('dash');
+    scrollDriverToTop();
+    setDriverOnboardingOpen(false);
+    addToast(`Welcome, ${updated.name || 'Driver Partner'}!`, 'check');
+  };
+
+  const logoutDriver = () => {
+    setDriverPartner(null);
+    try {
+      localStorage.removeItem('ridingo_driver_session');
+    } catch (e) {}
+    setDTab('dash');
+    scrollDriverToTop();
+    setDriverOnboardingOpen(true);
+    addToast('Signed out of Driver Partner account', 'info');
+  };
+
+  const logout = () => {
+    setUser(null);
+    try {
+      localStorage.removeItem('ridingo_user_session');
+    } catch (e) {}
+    setUTab('home');
+    scrollUserToTop();
+    setOnboardingOpen(true);
+    addToast('Logged out', 'info');
+  };
+
+  const resetDemo = () => {
+    setUser(null);
+    try {
+      localStorage.removeItem('ridingo_user_session');
+      localStorage.removeItem('ridingo_has_onboarded');
+    } catch (e) {}
+    setTrips([]);
+    setUtx([]);
+    setDriverBalance(0);
+    setDriverTx([]);
+    setBookingOpen(false);
+    setOnboardingOpen(true);
+    setUTab('home');
+    addToast('App reset. Clean install state active.', 'check');
+  };
+
+  const bookRide = (cat = 'hourly', qty = 2, pickup = 'Edappally Toll, Kochi', drop = 'City Route', fare = 600, advanceAmount, phonepePaymentId, schedule) => {
+    // Strictly restrict: Only allow one active trip at a time FOR THE LOGGED-IN USER!
+    const activeTrip = (trips || []).find(t =>
+      isUserTrip(t, user) &&
+      ['requested', 'accepted', 'pickup_arrived', 'ready_to_start', 'inprogress', 'ending_otp', 'invoice_pending'].includes(t.status)
+    );
+    if (activeTrip) {
+      addToast('You already have an active ride in progress. Complete your ongoing trip before booking another one.', 'warn');
+      setBookingOpen(false);
+      setLiveTrackingOpen(true);
+      setActiveTrackingTripId(activeTrip.id);
+      return null;
+    }
+
+    const tripId = 'TRP-' + Math.floor(1000 + Math.random() * 9000);
+    const pId = String(phonepePaymentId || ('pay_ppe_' + Date.now().toString(36)));
+    const safeFare = Number(fare) || 600;
+    const adv = advanceAmount !== undefined ? Number(advanceAmount) : Math.round(safeFare * 0.3);
+    const cb = Math.round(safeFare * 0.05);
+    const safeCat = String(cat || 'hourly');
+    const safePickup = (typeof pickup === 'string' && pickup.trim()) || 'Edappally Toll, Kochi';
+    const safeDrop = (typeof drop === 'string' && drop.trim()) || (safeCat === 'airport' ? 'Cochin International Airport (COK)' : 'City Route');
+    const scheduledDate = schedule?.date || null;
+    const scheduledTime = schedule?.time || null;
+    const tripTrans = schedule?.trans || 'Automatic';
+
+    const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    const endOtp = Math.floor(1000 + Math.random() * 9000).toString();
+
+    const newTrip = {
+      id: tripId,
+      cat: safeCat,
+      qty: Number(qty) || 2,
+      pickup: safePickup,
+      drop_loc: safeDrop,
+      trans: tripTrans,
+      car: { trans: tripTrans },
+      when_ts: Date.now(),
+      scheduledDate,
+      scheduledTime,
+      scheduleDisplay: scheduledDate ? `${scheduledDate} · ${scheduledTime}` : 'Immediate Pickup',
+      fare: safeFare,
+      advance: adv,
+      status: 'requested',
+      startOtp,
+      endOtp,
+      conditionPhotos: { front: null, left: null, back: null, top: null },
+      conditionScratches: [],
+      conditionNotes: '',
+      conditionVerified: false,
+      paymentGateway: 'PhonePe',
+      paymentId: pId,
+      driver: null,
+      rider: {
+        id: user?.id || user?.userId || 'RDU-GUEST',
+        userId: user?.id || user?.userId || 'RDU-GUEST',
+        name: user?.name || 'Customer',
+        phone: user?.phone || '+91 98401 23456',
+        email: user?.email || ''
+      },
+      cashback: cb,
+      cashbackStatus: 'pending',
+      pickupCoords: schedule?.pickupCoords || null,
+      dropCoords: schedule?.dropCoords || null,
+      pickupDetails: schedule?.pickupDetails || null,
+      dropDetails: schedule?.dropDetails || null,
+      flightNo: schedule?.flightNo || null,
+      airportType: schedule?.airportType || null,
+      driverEarlyBuffer: schedule?.driverEarlyBuffer || null,
+      distanceKm: schedule?.distanceKm || 12.4,
+      distanceText: schedule?.distanceText || '12.4 km',
+      durationMins: schedule?.durationMins || 28,
+      durationText: schedule?.durationText || '28 mins',
+      eta: schedule?.eta || null
+    };
+
+    // Record 30% advance payment in user transactions
+    const newTx = {
+      ts: Date.now(),
+      type: 'trip',
+      amount: -adv,
+      title: `Ride Advance · ${safeCat.toUpperCase()}`,
+      sub: `PhonePe (${pId.slice(0, 14)}) · Just now`,
+      gateway: 'PhonePe',
+      paymentId: pId
+    };
+
+    // Helper to persist full trip record in Supabase database
+    const persistTripToSupabase = async (tripObj) => {
+      try {
+        if (!supabase || typeof supabase.from !== 'function') return;
+        const row = {
+          id: tripObj.id,
+          cat: tripObj.cat,
+          qty: tripObj.qty,
+          pickup: tripObj.pickup,
+          drop_loc: tripObj.drop_loc,
+          when_ts: tripObj.when_ts,
+          done_ts: 0,
+          fare: tripObj.fare,
+          advance: tripObj.advance,
+          status: tripObj.status || 'requested',
+          driver: null,
+          car: {
+            model: tripObj.car?.model || 'Sedan',
+            trans: tripObj.trans || tripObj.car?.trans || 'Automatic',
+            plate: tripObj.car?.plate || 'KL 07 AB 4821',
+            startOtp: tripObj.startOtp,
+            endOtp: tripObj.endOtp,
+            scheduledDate: tripObj.scheduledDate,
+            scheduledTime: tripObj.scheduledTime,
+            pickupCoords: tripObj.pickupCoords,
+            dropCoords: tripObj.dropCoords
+          },
+          rider: tripObj.rider || { name: user?.name || 'Customer', phone: user?.phone || '+91 98401 23456' },
+          cashback: tripObj.cashback || 0,
+          distance_km: tripObj.distanceKm || null,
+          distance_text: tripObj.distanceText || null,
+          duration_text: tripObj.durationText || null,
+          eta: tripObj.eta || null,
+          by_who: user?.phone || 'user'
+        };
+        const { error } = await supabase.from('trips').upsert(row);
+        if (error) {
+          console.warn('[Supabase] Persist trip error:', error);
+        } else {
+          console.info('[Supabase] Trip stored in database:', tripObj.id);
+        }
+      } catch (e) {
+        console.warn('[Supabase] Persist error:', e);
+      }
+    };
+
+    setUtx(prev => [newTx, ...(Array.isArray(prev) ? prev : [])]);
+    // Retain all existing requests and prepend new booking
+    setTrips(prev => {
+      const arr = Array.isArray(prev) ? prev : [];
+      return [newTrip, ...arr.filter(t => t.id !== newTrip.id)];
+    });
+    setIncomingTripRequest(newTrip);
+    setActiveTrackingTripId(newTrip.id);
+
+    // 1. Broadcast over WebSocket channel
+    realtime.requestRide(newTrip);
+    // 2. Persist in cloud Supabase table (accessible to sandboxed iOS apps)
+    persistTripToSupabase(newTrip);
+
+    setBookingOpen(false);
+    setUTab('home');
+    setLiveTrackingOpen(true);
+    addToast(`Booked ${safeCat.toUpperCase()} chauffeur! ₹${adv} advance paid via PhonePe.`, 'check');
+  };
+
+  const updateTripStatusInSupabase = async (tripId, status, extra = {}) => {
+    try {
+      if (!supabase || typeof supabase.from !== 'function') return;
+      await supabase.from('trips').update({
+        status,
+        updated_at: new Date().toISOString(),
+        ...extra
+      }).eq('id', tripId);
+    } catch (e) {
+      console.warn('[Supabase] Status update error:', e);
+    }
+  };
+
+  const acceptTrip = (tripId) => {
+    const driver = driverPartner || DEFAULT_DRIVER;
+    const driverId = String(driver.id || driver.phone || 'ravi_1');
+    let targetOtp = '4821';
+    setTrips(prev =>
+      prev.map(t => {
+        if (t.id === tripId) {
+          targetOtp = t.startOtp || targetOtp;
+          return {
+            ...t,
+            status: 'accepted',
+            driver: driver.name,
+            driver_id: driverId,
+            driverObj: driver
+          };
+        }
+        return t;
+      })
+    );
+    setIncomingTripRequest(prev => (prev?.id === tripId ? null : prev));
+
+    // Notify User App in real time
+    addNotification(
+      'Chauffeur Assigned',
+      `${driver.name} (Rating ${driver.rating || '4.8'}) is en route to your pickup. Share Pickup OTP: ${targetOtp} upon arrival.`,
+      'car'
+    );
+    addToast(`Trip confirmed. ${driver.name} accepted your ride.`, 'check');
+
+    // Broadcast across realtime bus & update Supabase
+    realtime.acceptRide(tripId, driver);
+    updateTripStatusInSupabase(tripId, 'accepted', {
+      driver: driver.name,
+      driver_id: driverId
+    });
+  };
+
+  const arrivedAtPickup = (tripId) => {
+    let targetOtp = '4821';
+    setTrips(prev =>
+      prev.map(t => {
+        if (t.id === tripId) {
+          targetOtp = t.startOtp || targetOtp;
+          return { ...t, status: 'pickup_arrived' };
+        }
+        return t;
+      })
+    );
+    realtime.arrivedAtPickup(tripId);
+    updateTripStatusInSupabase(tripId, 'pickup_arrived');
+    addToast('Arrived at pickup location! Enter customer OTP to start ride.', 'info');
+  };
+
+  const verifyStartOtp = (tripId) => {
+    setTrips(prev =>
+      prev.map(t => (t.id === tripId ? { ...t, status: 'ready_to_start' } : t))
+    );
+    realtime.verifyStartOtp(tripId);
+    updateTripStatusInSupabase(tripId, 'ready_to_start');
+    addToast('Pickup OTP verified! Ready to start trip.', 'check');
+  };
+
+  const submitConditionCheck = (tripId, { photos, scratches, notes }) => {
+    setTrips(prev =>
+      prev.map(t => (t.id === tripId ? {
+        ...t,
+        status: 'ready_to_start',
+        conditionPhotos: photos,
+        conditionScratches: scratches || [],
+        conditionNotes: notes || '',
+        conditionVerified: true
+      } : t))
+    );
+    realtime.verifyConditionCheck(tripId, photos, scratches);
+    addToast('Car condition verified! You can now start the trip.', 'check');
+  };
+
+  const startTrip = (tripId) => {
+    setTrips(prev =>
+      prev.map(t => (t.id === tripId ? { ...t, status: 'inprogress', startedAt: Date.now() } : t))
+    );
+    realtime.startRide(tripId);
+    updateTripStatusInSupabase(tripId, 'inprogress');
+    addToast('Trip started! Live GPS sharing activated.', 'check');
+  };
+
+  const requestEndTrip = (tripId, overrideEndOtp) => {
+    let targetOtp = overrideEndOtp || Math.floor(1000 + Math.random() * 9000).toString();
+    setTrips(prev =>
+      prev.map(t => {
+        if (t.id === tripId) {
+          targetOtp = overrideEndOtp || t.endOtp || targetOtp;
+          return { ...t, status: 'ending_otp', endOtp: targetOtp, endOtpRegenerated: true };
+        }
+        return t;
+      })
+    );
+    realtime.requestEndTrip(tripId, targetOtp);
+    updateTripStatusInSupabase(tripId, 'ending_otp');
+    addToast(`Destination reached! Trip End OTP: ${targetOtp}`, 'info');
+  };
+
+  const verifyEndOtp = (tripId) => {
+    setTrips(prev =>
+      prev.map(t => (t.id === tripId ? { ...t, status: 'invoice_pending' } : t))
+    );
+    addToast('Drop OTP verified! Displaying PhonePe Invoice.', 'check');
+  };
+
+  const settleTripPayment = (tripId, { amount, fare, tip = 0, method = 'PhonePe UPI', isCash = false } = {}) => {
+    const tripFare = fare || 750;
+    const companyCommission = Math.round(tripFare * 0.15); // 15% platform fee
+    const driverEarnings = Math.round(tripFare * 0.85) + Number(tip || 0); // 85% + 100% tip
+
+    if (isCash) {
+      // PENALTY: Increment Black Mark for accepting cash
+      setDriverPartner(prev => ({
+        ...prev,
+        blackMarks: (prev?.blackMarks || 0) + 1
+      }));
+      addToast('⚠️ Violation: 1 Black Mark issued for cash transaction!', 'warn');
+    } else {
+      addToast(`₹${driverEarnings} credited to Chauffeur Wallet via PhonePe Escrow!`, 'check');
+    }
+
+    // Update driver partner wallet
+    setDriverBalance(prev => prev + driverEarnings);
+    setDriverTx(prev => [
+      {
+        id: 'tx-' + Date.now(),
+        title: `Trip Earnings · ${method}`,
+        sub: `Net 85% (₹${Math.round(tripFare * 0.85)}) + Tip (₹${tip})`,
+        amount: driverEarnings,
+        type: 'fare',
+        gateway: 'PhonePe Escrow',
+        ts: Date.now()
+      },
+      ...prev
+    ]);
+
+    // Mark trip complete
+    setTrips(prev =>
+      prev.map(t => (t.id === tripId ? {
+        ...t,
+        status: 'completed',
+        completedAt: Date.now(),
+        finalSettlement: {
+          total: amount || tripFare,
+          driverEarnings,
+          commission: companyCommission,
+          tip,
+          method,
+          isCash
+        }
+      } : t))
+    );
+
+    realtime.completeRide(tripId, { amount, fare, tip, isCash });
+    updateTripStatusInSupabase(tripId, 'completed', { done_ts: Date.now() });
+  };
+
+  const declineTrip = (tripId) => {
+    setIncomingTripRequest(prev => (prev?.id === tripId ? null : prev));
+    setTrips(prev => prev.filter(t => t.id !== tripId));
+    setActiveTrackingTripId(prev => (prev === tripId ? null : prev));
+    realtime.declineRide(tripId);
+    updateTripStatusInSupabase(tripId, 'declined');
+    addToast('Trip request dismissed', 'info');
+  };
+
+  const completeTrip = (tripId) => {
+    settleTripPayment(tripId);
+  };
+
+  const userBalance = Math.max(0, Array.isArray(utx)
+    ? utx.reduce((a, t) => a + (Number(t?.amount) || 0), 0)
+    : 0);
+
+  return (
+    <AppContext.Provider
+      value={{
+        theme,
+        setTheme,
+        userTheme,
+        setUserTheme,
+        userThemeVal,
+        userIsDark: userThemeVal === 'dark',
+        driverTheme,
+        setDriverTheme,
+        driverThemeVal,
+        driverIsDark: driverThemeVal === 'dark',
+        user,
+        setUser,
+        updateUserProfile,
+        driverPartner,
+        setDriverPartner,
+        updateDriverPartner,
+        loginDemo,
+        loginWithDetails,
+        logout,
+        loginDriverDemo,
+        loginDriverWithDetails,
+        logoutDriver,
+        scrollUserToTop,
+        scrollDriverToTop,
+        resetDemo,
+        view,
+        setView,
+        uTab,
+        setUTab,
+        dTab,
+        setDTab,
+        trips,
+        setTrips,
+        tripsFilter,
+        setTripsFilter,
+        utx,
+        setUtx,
+        userBalance,
+        bookingOpen,
+        setBookingOpen,
+        bookingCategory,
+        setBookingCategory,
+        bookingDestination,
+        setBookingDestination,
+        notifsOpen,
+        setNotifsOpen,
+        unotes,
+        setUnotes,
+        markAllNotifsRead,
+        markNotifRead,
+        deleteNotif,
+        clearAllNotifs,
+        addNotification,
+        bookRide,
+        isUserTrip,
+        acceptTrip,
+        declineTrip,
+        arrivedAtPickup,
+        verifyStartOtp,
+        submitConditionCheck,
+        startTrip,
+        requestEndTrip,
+        verifyEndOtp,
+        settleTripPayment,
+        incomingTripRequest,
+        setIncomingTripRequest,
+        completeTrip,
+        driverOnline,
+        setDriverOnline,
+        driverBalance,
+        setDriverBalance,
+        driverTx,
+        setDriverTx,
+        toasts,
+        addToast,
+        liveTrackingOpen,
+        setLiveTrackingOpen,
+        activeTrackingTripId,
+        setActiveTrackingTripId,
+        onboardingOpen,
+        setOnboardingOpen,
+        driverOnboardingOpen,
+        setDriverOnboardingOpen,
+        legalModal,
+        setLegalModal,
+        openLegal,
+        closeLegal,
+        syncTripsFromSupabase
+      }}
+    >
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+export function useApp() {
+  return useContext(AppContext);
+}
