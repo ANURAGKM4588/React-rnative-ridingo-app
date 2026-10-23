@@ -1,11 +1,118 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import L from 'leaflet';
 import Icon from './Icon';
+import { useApp } from '../context/AppContext';
 import { getDeviceLocation, reverseGeocode, getCachedDeviceLocation } from '../lib/deviceLocation';
 import { getCurrentDevicePosition } from '../services/nativeLocationService';
 import { GOOGLE_MAP_TILES, cleanPlusCode, fetchNearestLandmarkByCoordinates } from '../services/googleMapsService';
 
+/**
+ * Minimalist Box Design Style for Google Maps (Light Mode)
+ * Matches reference design (Image 2):
+ * - Clean off-white background (#F4F7FA)
+ * - Accurate geometric building footprint boxes (#DFE5EC)
+ * - Main roads & flyovers prioritized in slate-blue (#C8D7E5) with subtle borders
+ * - Water (rivers, canals) in crisp, vibrant sky cyan (#82DCF8)
+ * - Metro (M) and bus transit landmarks preserved
+ * - Commercial junk / POIs (restaurants, clothing stores, ads) completely removed
+ */
+const MINIMALIST_BOX_LIGHT_STYLE = [
+  // 1. Remove commercial & unwanted POI clutter
+  { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.attraction', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.medical', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.school', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.sports_complex', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.place_of_worship', stylers: [{ visibility: 'simplified' }] },
+  { featureType: 'poi.government', stylers: [{ visibility: 'simplified' }] },
+
+  // 2. Retain essential transit landmarks (Metro stations, bus stops)
+  { featureType: 'transit', elementType: 'all', stylers: [{ visibility: 'on' }] },
+  { featureType: 'transit.station', elementType: 'labels.icon', stylers: [{ visibility: 'on' }] },
+
+  // 3. Water: Clean, refreshing sky cyan matching reference
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#82DCF8' }, { visibility: 'on' }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#0369A1' }] },
+
+  // 4. Ground / Landscape: Minimalist off-white
+  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#F4F7FA' }] },
+  { featureType: 'landscape.natural', elementType: 'geometry', stylers: [{ color: '#EAF0F4' }] },
+
+  // 5. Minimalist 2D/3D building boxes: Accurate geometric blocks
+  { featureType: 'landscape.man_made', elementType: 'geometry', stylers: [{ color: '#DFE5EC' }, { visibility: 'on' }] },
+  { featureType: 'landscape.man_made', elementType: 'geometry.stroke', stylers: [{ color: '#D0D8E2' }, { weight: 0.5 }, { visibility: 'on' }] },
+  { featureType: 'building', elementType: 'geometry', stylers: [{ color: '#DFE5EC' }, { visibility: 'on' }] },
+
+  // 6. Roads: Prioritize main roads, flyovers, highways
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#C8D7E5' }] },
+  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#B5C7D8' }, { weight: 1.2 }] },
+  { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#DCE5EE' }] },
+  { featureType: 'road.arterial', elementType: 'geometry.stroke', stylers: [{ color: '#CAD5E0' }, { weight: 0.8 }] },
+  { featureType: 'road.local', elementType: 'geometry', stylers: [{ color: '#FFFFFF' }] },
+  { featureType: 'road.local', elementType: 'geometry.stroke', stylers: [{ color: '#E2E8F0' }, { weight: 0.5 }] },
+
+  // 7. Road labels: Legible dark slate
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#334155' }] },
+  { featureType: 'road', elementType: 'labels.text.stroke', stylers: [{ color: '#FFFFFF' }, { weight: 3 }] },
+  { featureType: 'road.highway', elementType: 'labels.icon', stylers: [{ visibility: 'on' }] },
+
+  // 8. Administrative
+  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#CBD5E1' }, { weight: 1 }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#0F172A' }] }
+];
+
+/**
+ * Minimalist Box Design Style for Google Maps (Dark Mode)
+ * Logically mirrors the light mode:
+ * - Deep slate background (#131924)
+ * - Accurate geometric building footprint boxes in dark slate (#1E2638) with subtle outline
+ * - Main roads & flyovers highlighted in slate-blue (#2A3C59)
+ * - Water (rivers, canals) in vibrant electric sapphire/cyan (#0E3B66)
+ * - Transit landmarks preserved, commercial junk removed
+ */
+const MINIMALIST_BOX_DARK_STYLE = [
+  // 1. Remove commercial POI clutter
+  { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.attraction', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.medical', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.school', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.sports_complex', stylers: [{ visibility: 'off' }] },
+
+  // 2. Retain essential transit landmarks
+  { featureType: 'transit', elementType: 'all', stylers: [{ visibility: 'on' }] },
+  { featureType: 'transit.station', elementType: 'labels.icon', stylers: [{ visibility: 'on' }] },
+
+  // 3. Water: Deep electric sapphire/cyan
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0E3B66' }, { visibility: 'on' }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#38BDF8' }] },
+
+  // 4. Ground / Landscape: Deep slate dark
+  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#131924' }] },
+  { featureType: 'landscape.natural', elementType: 'geometry', stylers: [{ color: '#171E2C' }] },
+
+  // 5. Minimalist 2D/3D building boxes: Geometric dark blocks
+  { featureType: 'landscape.man_made', elementType: 'geometry', stylers: [{ color: '#1E2638' }, { visibility: 'on' }] },
+  { featureType: 'landscape.man_made', elementType: 'geometry.stroke', stylers: [{ color: '#2B374E' }, { weight: 0.6 }, { visibility: 'on' }] },
+  { featureType: 'building', elementType: 'geometry', stylers: [{ color: '#1E2638' }, { visibility: 'on' }] },
+
+  // 6. Roads: Prioritized with glowing slate blue
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#2A3C59' }] },
+  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#415A82' }, { weight: 1.2 }] },
+  { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#202E44' }] },
+  { featureType: 'road.arterial', elementType: 'geometry.stroke', stylers: [{ color: '#324768' }, { weight: 0.8 }] },
+  { featureType: 'road.local', elementType: 'geometry', stylers: [{ color: '#172233' }] },
+  { featureType: 'road.local', elementType: 'geometry.stroke', stylers: [{ color: '#25354D' }, { weight: 0.5 }] },
+
+  // 7. Labels
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#CBD5E1' }] },
+  { featureType: 'road', elementType: 'labels.text.stroke', stylers: [{ color: '#0D121B' }, { weight: 3 }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#F1F5F9' }] }
+];
+
 export default function MapPickerModal({ isOpen, onClose, onSelect, targetField = 'pickup' }) {
+  const { userThemeVal } = useApp() || {};
+  const isDark = userThemeVal === 'dark';
+
   const label = targetField === 'pickup' ? 'Pickup Location' : 'Destination';
 
   const [selectedAddr, setSelectedAddr] = useState(() => {
@@ -25,21 +132,17 @@ export default function MapPickerModal({ isOpen, onClose, onSelect, targetField 
     };
   });
 
-  const [isLocating, setIsLocating] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [gpsError, setGpsError] = useState(null);
-  const [mapType, setMapType] = useState('roadmap');
 
   const containerRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const tileLayerRef = useRef(null);
-  const deviceMarkerRef = useRef(null);
-  const deviceCircleRef = useRef(null);
+  const mapEngineRef = useRef(null); // 'google' or 'leaflet'
+  const googleMapRef = useRef(null);
+  const leafletMapRef = useRef(null);
   const debounceTimerRef = useRef(null);
-  const isInitializedRef = useRef(false);
 
-  // Real Google Maps Geocoder: resolves geographic place name and collects routing & tracking data
+  // Reverse geocode center location
   const geocodeCenter = useCallback(
     async (centerLat, centerLng) => {
       setIsGeocoding(true);
@@ -50,12 +153,11 @@ export default function MapPickerModal({ isOpen, onClose, onSelect, targetField 
           const cleanPlaceName = cleanPlusCode(placeData.name);
           const cleanAddress = cleanPlusCode(placeData.formattedAddress || placeData.name);
 
-          // Collect complete location data for driver tracking and route mapping (kept in state, not shown as raw codes)
           setCoordsInfo({
             lat: centerLat,
             lng: centerLng,
             placeId: placeData.placeId,
-            name: cleanPlaceName, // Geographic place location name (e.g., "Edappally, Kochi")
+            name: cleanPlaceName,
             address: cleanAddress,
             city: placeData.city || cleanPlaceName.split(',')[0].trim(),
             state: placeData.state || 'Kerala',
@@ -86,7 +188,7 @@ export default function MapPickerModal({ isOpen, onClose, onSelect, targetField 
     []
   );
 
-  // Initialize Real Leaflet Map with Google Maps Tiles
+  // Initialize Map
   useEffect(() => {
     if (!isOpen) return;
     let isCancelled = false;
@@ -111,82 +213,105 @@ export default function MapPickerModal({ isOpen, onClose, onSelect, targetField 
     });
     setSelectedAddr(initialAddr);
 
-    if (!mapInstanceRef.current && containerRef.current) {
-      const map = L.map(containerRef.current, {
-        center: [initialLat, initialLng],
-        zoom: 16.5,
-        zoomControl: false,
-        attributionControl: false
-      });
+    const initTimer = setTimeout(() => {
+      if (!containerRef.current) return;
 
-      const googleCfg = GOOGLE_MAP_TILES[mapType] || GOOGLE_MAP_TILES.roadmap;
-      const gLayer = L.tileLayer(googleCfg.url, {
-        subdomains: googleCfg.subdomains,
-        maxZoom: googleCfg.maxZoom,
-        attribution: googleCfg.attribution
-      }).addTo(map);
-      tileLayerRef.current = gLayer;
+      const activeStyles = isDark ? MINIMALIST_BOX_DARK_STYLE : MINIMALIST_BOX_LIGHT_STYLE;
 
-      // Real Device GPS Blue Ring
-      const circle = L.circle([initialLat, initialLng], {
-        radius: Math.min(cachedLoc.accuracy || 25, 90),
-        color: '#1A73E8',
-        fillColor: '#1A73E8',
-        fillOpacity: 0.14,
-        weight: 1.5
-      }).addTo(map);
-      deviceCircleRef.current = circle;
+      // 1. Try Native Google Maps JS SDK (Official vector minimalist rendering)
+      if (window.google && window.google.maps && window.google.maps.Map) {
+        try {
+          const gMap = new window.google.maps.Map(containerRef.current, {
+            center: { lat: initialLat, lng: initialLng },
+            zoom: 17,
+            disableDefaultUI: true,
+            gestureHandling: 'greedy',
+            styles: activeStyles,
+            backgroundColor: isDark ? '#131924' : '#F4F7FA'
+          });
 
-      const gpsPulseIcon = L.divIcon({
-        className: 'device-gps-pulse-marker',
-        html: '<div class="gps-pulse-dot"><div class="gps-pulse-ring"></div></div>',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
-      });
-      const marker = L.marker([initialLat, initialLng], { icon: gpsPulseIcon }).addTo(map);
-      deviceMarkerRef.current = marker;
+          gMap.addListener('dragstart', () => {
+            setIsDragging(true);
+          });
 
-      // Map drag events
-      map.on('movestart', () => {
-        setIsDragging(true);
-      });
+          gMap.addListener('dragend', () => {
+            setIsDragging(false);
+            const center = gMap.getCenter();
+            clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = setTimeout(() => {
+              geocodeCenter(center.lat(), center.lng());
+            }, 180);
+          });
 
-      map.on('moveend', () => {
-        setIsDragging(false);
-        const center = map.getCenter();
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = setTimeout(() => {
-          geocodeCenter(center.lat, center.lng);
-        }, 180);
-      });
+          gMap.addListener('idle', () => {
+            setIsDragging(false);
+          });
 
-      // Map tap: moves marker to tapped location
-      map.on('click', (e) => {
-        if (!e.latlng) return;
-        const { lat, lng } = e.latlng;
-        map.panTo([lat, lng], { animate: true, duration: 0.25 });
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = setTimeout(() => {
-          geocodeCenter(lat, lng);
-        }, 100);
-      });
+          gMap.addListener('click', (e) => {
+            if (!e.latLng) return;
+            gMap.panTo(e.latLng);
+            clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = setTimeout(() => {
+              geocodeCenter(e.latLng.lat(), e.latLng.lng());
+            }, 100);
+          });
 
-      mapInstanceRef.current = map;
-      isInitializedRef.current = true;
-
-      requestAnimationFrame(() => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.invalidateSize();
+          googleMapRef.current = gMap;
+          mapEngineRef.current = 'google';
+          return;
+        } catch (e) {
+          console.warn('[MapPickerModal] Google Maps JS fallback to Leaflet:', e);
         }
-      });
-      setTimeout(() => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.invalidateSize();
-        }
-      }, 50);
-    }
+      }
 
-    // Fast non-blocking background GPS refresh without loading overlay
+      // 2. Fallback: Leaflet with Google Maps Roadmap Tiles
+      if (!leafletMapRef.current && containerRef.current) {
+        const lMap = L.map(containerRef.current, {
+          center: [initialLat, initialLng],
+          zoom: 17,
+          zoomControl: false,
+          attributionControl: false
+        });
+
+        const googleCfg = GOOGLE_MAP_TILES.roadmap;
+        L.tileLayer(googleCfg.url, {
+          subdomains: googleCfg.subdomains,
+          maxZoom: 20,
+          attribution: googleCfg.attribution
+        }).addTo(lMap);
+
+        lMap.on('movestart', () => {
+          setIsDragging(true);
+        });
+
+        lMap.on('moveend', () => {
+          setIsDragging(false);
+          const center = lMap.getCenter();
+          clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = setTimeout(() => {
+            geocodeCenter(center.lat, center.lng);
+          }, 180);
+        });
+
+        lMap.on('click', (e) => {
+          if (!e.latlng) return;
+          lMap.panTo([e.latlng.lat, e.latlng.lng], { animate: true, duration: 0.25 });
+          clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = setTimeout(() => {
+            geocodeCenter(e.latlng.lat, e.latlng.lng);
+          }, 100);
+        });
+
+        leafletMapRef.current = lMap;
+        mapEngineRef.current = 'leaflet';
+
+        requestAnimationFrame(() => {
+          if (leafletMapRef.current) leafletMapRef.current.invalidateSize();
+        });
+      }
+    }, 60);
+
+    // Fast non-blocking background GPS refresh
     getDeviceLocation(false)
       .then((freshLoc) => {
         if (isCancelled || !freshLoc || !freshLoc.lat) return;
@@ -200,37 +325,42 @@ export default function MapPickerModal({ isOpen, onClose, onSelect, targetField 
           setSelectedAddr(cleanPlusCode(freshLoc.address));
         }
 
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.panTo([freshLoc.lat, freshLoc.lng], { animate: false });
-          if (deviceCircleRef.current) {
-            deviceCircleRef.current.setLatLng([freshLoc.lat, freshLoc.lng]);
-            deviceCircleRef.current.setRadius(Math.min(freshLoc.accuracy || 20, 80));
-          }
-          if (deviceMarkerRef.current) {
-            deviceMarkerRef.current.setLatLng([freshLoc.lat, freshLoc.lng]);
-          }
+        if (mapEngineRef.current === 'google' && googleMapRef.current) {
+          googleMapRef.current.panTo({ lat: freshLoc.lat, lng: freshLoc.lng });
+        } else if (leafletMapRef.current) {
+          leafletMapRef.current.panTo([freshLoc.lat, freshLoc.lng], { animate: false });
         }
       })
       .catch(() => {});
 
     return () => {
       isCancelled = true;
+      clearTimeout(initTimer);
       clearTimeout(debounceTimerRef.current);
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-        deviceMarkerRef.current = null;
-        deviceCircleRef.current = null;
-        isInitializedRef.current = false;
-      }
-    };
-  }, [isOpen, geocodeCenter, mapType]);
 
-  // Recenter GPS: Instant detection with 0ms delay
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove();
+        leafletMapRef.current = null;
+      }
+      googleMapRef.current = null;
+      mapEngineRef.current = null;
+    };
+  }, [isOpen, geocodeCenter, isDark]);
+
+  // Dynamically update Google Map styles when theme changes
+  useEffect(() => {
+    if (mapEngineRef.current === 'google' && googleMapRef.current) {
+      googleMapRef.current.setOptions({
+        styles: isDark ? MINIMALIST_BOX_DARK_STYLE : MINIMALIST_BOX_LIGHT_STYLE,
+        backgroundColor: isDark ? '#131924' : '#F4F7FA'
+      });
+    }
+  }, [isDark]);
+
+  // Recenter GPS Button
   const handleDetectCurrentLocation = () => {
     setGpsError(null);
 
-    // 1. Instant detection from cache
     const cached = getCachedDeviceLocation();
     if (cached && cached.lat && cached.lng) {
       const cleanAddr = cleanPlusCode(cached.address) || 'Current Location';
@@ -243,32 +373,22 @@ export default function MapPickerModal({ isOpen, onClose, onSelect, targetField 
       });
       setSelectedAddr(cleanAddr);
 
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.setView([cached.lat, cached.lng], 17, { animate: false });
-        if (deviceCircleRef.current) {
-          deviceCircleRef.current.setLatLng([cached.lat, cached.lng]);
-          deviceCircleRef.current.setRadius(Math.min(cached.accuracy || 20, 80));
-        }
-        if (deviceMarkerRef.current) {
-          deviceMarkerRef.current.setLatLng([cached.lat, cached.lng]);
-        }
+      if (mapEngineRef.current === 'google' && googleMapRef.current) {
+        googleMapRef.current.panTo({ lat: cached.lat, lng: cached.lng });
+        googleMapRef.current.setZoom(17);
+      } else if (leafletMapRef.current) {
+        leafletMapRef.current.setView([cached.lat, cached.lng], 17, { animate: false });
       }
     }
 
-    // 2. Hardware GPS fast sync in parallel without blocking UI (Strictly routed through Capacitor Geolocation on iOS/Android)
     getCurrentDevicePosition({ enableHighAccuracy: true, timeout: 3500, maximumAge: 60000 })
       .then((pos) => {
         if (pos && pos.coords) {
-          const { latitude, longitude, accuracy } = pos.coords;
-          if (mapInstanceRef.current) {
-            mapInstanceRef.current.panTo([latitude, longitude], { animate: false });
-            if (deviceCircleRef.current) {
-              deviceCircleRef.current.setLatLng([latitude, longitude]);
-              deviceCircleRef.current.setRadius(Math.min(accuracy || 20, 80));
-            }
-            if (deviceMarkerRef.current) {
-              deviceMarkerRef.current.setLatLng([latitude, longitude]);
-            }
+          const { latitude, longitude } = pos.coords;
+          if (mapEngineRef.current === 'google' && googleMapRef.current) {
+            googleMapRef.current.panTo({ lat: latitude, lng: longitude });
+          } else if (leafletMapRef.current) {
+            leafletMapRef.current.panTo([latitude, longitude], { animate: false });
           }
           geocodeCenter(latitude, longitude);
         }
@@ -276,8 +396,25 @@ export default function MapPickerModal({ isOpen, onClose, onSelect, targetField 
       .catch(() => {});
   };
 
+  // Zoom In
+  const handleZoomIn = () => {
+    if (mapEngineRef.current === 'google' && googleMapRef.current) {
+      googleMapRef.current.setZoom((googleMapRef.current.getZoom() || 17) + 1);
+    } else if (leafletMapRef.current) {
+      leafletMapRef.current.zoomIn();
+    }
+  };
+
+  // Zoom Out
+  const handleZoomOut = () => {
+    if (mapEngineRef.current === 'google' && googleMapRef.current) {
+      googleMapRef.current.setZoom((googleMapRef.current.getZoom() || 17) - 1);
+    } else if (leafletMapRef.current) {
+      leafletMapRef.current.zoomOut();
+    }
+  };
+
   const handleConfirm = () => {
-    // Pass the clean place address for the input box, and complete tracking/routing data in coordsInfo
     onSelect(cleanPlusCode(selectedAddr), coordsInfo);
     onClose();
   };
@@ -285,76 +422,120 @@ export default function MapPickerModal({ isOpen, onClose, onSelect, targetField 
   if (!isOpen) return null;
 
   return (
-    <div className="map-picker-scrim" style={{ zIndex: 10000 }}>
-      {/* Header */}
+    <div
+      className="map-picker-scrim"
+      style={{
+        zIndex: 10000,
+        background: isDark ? '#0A0A0B' : '#FFFFFF',
+        display: 'flex',
+        flexDirection: 'column'
+      }}
+    >
+      {/* 1. Header (Matching Reference Image 2: top drag handle, outline pin, clean typography) */}
       <div
         className="map-picker-head"
         style={{
-          background: 'var(--surface, #FFFFFF)',
-          borderBottom: '1px solid var(--line, #E2E8F0)',
-          padding: '12px 16px',
+          background: isDark ? '#1C1C1E' : '#FFFFFF',
+          borderBottom: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.06)',
+          padding: '12px 18px 14px',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
+          flexDirection: 'column',
+          position: 'relative',
+          zIndex: 10
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span
+        {/* Subtle top drag handle bar */}
+        <div
+          style={{
+            width: '38px',
+            height: '4px',
+            borderRadius: '2px',
+            background: isDark ? '#3F3F46' : '#CBD5E1',
+            margin: '0 auto 10px'
+          }}
+        />
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          {/* Left: Outline Location Pin Icon & Title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={isDark ? '#FFFFFF' : '#0F172A'}
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ flexShrink: 0 }}
+            >
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+              <circle cx="12" cy="9" r="2.5" />
+            </svg>
+            <div>
+              <b
+                style={{
+                  fontSize: '18px',
+                  fontWeight: 800,
+                  display: 'block',
+                  color: isDark ? '#FFFFFF' : '#0F172A',
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1.2
+                }}
+              >
+                Choose {label}
+              </b>
+              <span
+                style={{
+                  fontSize: '12px',
+                  color: isDark ? '#94A3B8' : '#64748B',
+                  display: 'block',
+                  marginTop: '2px',
+                  fontWeight: 500
+                }}
+              >
+                Move map or tap to place the pin
+              </span>
+            </div>
+          </div>
+
+          {/* Right: Round Minimalist Close Button */}
+          <button
+            className="iconbtn"
+            onClick={onClose}
+            aria-label="Close"
             style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '12px',
-              background: 'var(--yellow, #FACC15)',
-              color: '#15140F',
-              display: 'grid',
-              placeItems: 'center',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+              width: '38px',
+              height: '38px',
+              borderRadius: '50%',
+              background: isDark ? '#27272A' : '#F8FAFC',
+              color: isDark ? '#FFFFFF' : '#0F172A',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              border: isDark ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #E2E8F0',
+              transition: 'all 0.15s ease'
             }}
           >
-            <Icon name="pin" size={19} />
-          </span>
-          <div>
-            <b style={{ font: '700 16px var(--font-display, system-ui)', display: 'block', color: 'var(--ink, #0F172A)' }}>
-              Choose {label}
-            </b>
-            <span style={{ fontSize: '11.5px', color: 'var(--muted, #64748B)' }}>
-              Move map or tap to place the pin
-            </span>
-          </div>
+            <Icon name="x" size={17} />
+          </button>
         </div>
-        <button
-          className="iconbtn"
-          onClick={onClose}
-          aria-label="Close"
-          style={{
-            width: '34px',
-            height: '34px',
-            borderRadius: '50%',
-            background: 'var(--field, #F1F5F9)',
-            color: 'var(--ink, #0F172A)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            border: '1px solid var(--line, #E2E8F0)'
-          }}
-        >
-          <Icon name="x" size={17} />
-        </button>
       </div>
 
-      {/* Real Full-View Map Container */}
+      {/* 2. Full-View Minimalist Box Map Container */}
       <div
         style={{
           position: 'relative',
           flex: 1,
           width: '100%',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          background: isDark ? '#131924' : '#F4F7FA'
         }}
       >
         <div
           ref={containerRef}
-          className="map-picker-container"
+          className={`map-picker-container ${isDark ? 'gmap-dark-minimal' : 'gmap-light-minimal'}`}
           style={{
             width: '100%',
             height: '100%',
@@ -364,156 +545,304 @@ export default function MapPickerModal({ isOpen, onClose, onSelect, targetField 
           }}
         />
 
-        {/* Centered Map Pin Marker */}
+        {/* 3. Center Radar Target & Pin (Exact Match of Reference Image 2) */}
+        {/* Ground Radar Target Ring */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '92px',
+            height: '92px',
+            borderRadius: '50%',
+            background: isDark ? 'rgba(56, 189, 248, 0.18)' : 'rgba(37, 99, 235, 0.18)',
+            border: isDark ? '1.5px solid rgba(56, 189, 248, 0.45)' : '1.5px solid rgba(37, 99, 235, 0.45)',
+            pointerEvents: 'none',
+            zIndex: 890,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          {/* Inner blue ring with white center dot */}
+          <div
+            style={{
+              width: '18px',
+              height: '18px',
+              borderRadius: '50%',
+              background: '#2563EB',
+              border: '3px solid #FFFFFF',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.25)'
+            }}
+          />
+        </div>
+
+        {/* Interactive Centered Red Pin */}
         <div
           className={`map-center-pin-wrap ${isDragging ? 'pin-lifted' : ''}`}
           style={{
             position: 'absolute',
             top: '50%',
             left: '50%',
-            transform: 'translate(-50%, -100%)',
+            transform: isDragging ? 'translate(-50%, -115%) scale(1.06)' : 'translate(-50%, -100%) scale(1)',
             pointerEvents: 'none',
             zIndex: 900,
-            transition: 'transform 0.15s ease'
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            transition: 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
           }}
         >
-          <svg width="36" height="48" viewBox="0 0 24 34" fill="none">
+          <svg width="38" height="50" viewBox="0 0 24 34" fill="none">
             <path
               d="M12 0C5.37 0 0 5.37 0 12c0 8.5 12 22 12 22s12-13.5 12-22c0-6.63-5.37-12-12-12z"
-              fill="#EA4335"
+              fill="#EF4444"
+              stroke="#FFFFFF"
+              strokeWidth="1.2"
             />
-            <circle cx="12" cy="11.5" r="4.5" fill="#FFFFFF" />
-            <circle cx="12" cy="11.5" r="2.2" fill="#B31412" />
+            <circle cx="12" cy="11.5" r="4.2" fill="#FFFFFF" />
+            <circle cx="12" cy="11.5" r="2.2" fill="#2563EB" />
           </svg>
           <div
             style={{
               width: '10px',
               height: '4px',
               borderRadius: '50%',
-              background: 'rgba(0,0,0,0.25)',
-              margin: '-2px auto 0'
+              background: 'rgba(0, 0, 0, 0.3)',
+              margin: '-2px auto 0',
+              opacity: isDragging ? 0.2 : 0.6,
+              transform: isDragging ? 'scale(1.4)' : 'scale(1)',
+              transition: 'all 0.18s ease'
             }}
           />
         </div>
 
-        {/* Recenter Device GPS Button */}
-        <button
-          className="gmap-stock-loc-btn"
-          type="button"
-          onClick={handleDetectCurrentLocation}
-          title="Recenter on My Location"
-          aria-label="Recenter on My Location"
+        {/* 4. Right Floating Controls (GPS Recenter & Stacked Zoom Buttons matching Image 2) */}
+        <div
           style={{
             position: 'absolute',
-            bottom: '20px',
+            bottom: '24px',
             right: '16px',
-            width: '42px',
-            height: '42px',
-            borderRadius: '50%',
-            background: 'var(--card, #FFFFFF)',
-            border: '1.5px solid var(--line, #E2E8F0)',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
-            display: 'grid',
-            placeItems: 'center',
-            cursor: 'pointer',
-            zIndex: 900,
-            color: 'var(--ink, #0F172A)'
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '12px',
+            zIndex: 950
           }}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-            <circle cx="12" cy="12" r="7" />
-            <line x1="12" y1="1" x2="12" y2="5" />
-            <line x1="12" y1="19" x2="12" y2="23" />
-            <line x1="1" y1="12" x2="5" y2="12" />
-            <line x1="19" y1="12" x2="23" y2="12" />
-            <circle cx="12" cy="12" r="2.5" fill="currentColor" />
-          </svg>
-        </button>
+          {/* Circular GPS Recenter Button */}
+          <button
+            type="button"
+            onClick={handleDetectCurrentLocation}
+            title="Recenter on My Location"
+            aria-label="Recenter on My Location"
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '50%',
+              background: isDark ? '#1C1C1E' : '#FFFFFF',
+              border: isDark ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid rgba(0, 0, 0, 0.08)',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.12)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: isDark ? '#FFFFFF' : '#0F172A',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <circle cx="12" cy="12" r="7" />
+              <line x1="12" y1="1" x2="12" y2="5" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="1" y1="12" x2="5" y2="12" />
+              <line x1="19" y1="12" x2="23" y2="12" />
+              <circle cx="12" cy="12" r="2.5" fill="currentColor" />
+            </svg>
+          </button>
+
+          {/* Stacked Zoom Controls (+ / −) */}
+          <div
+            style={{
+              width: '42px',
+              borderRadius: '14px',
+              background: isDark ? '#1C1C1E' : '#FFFFFF',
+              border: isDark ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid rgba(0, 0, 0, 0.08)',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.12)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              title="Zoom In"
+              aria-label="Zoom In"
+              style={{
+                width: '42px',
+                height: '40px',
+                border: 'none',
+                background: 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: isDark ? '#FFFFFF' : '#0F172A',
+                fontSize: '20px',
+                fontWeight: 600,
+                transition: 'background 0.15s ease'
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+            <div style={{ height: '1px', background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', width: '100%' }} />
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              title="Zoom Out"
+              aria-label="Zoom Out"
+              style={{
+                width: '42px',
+                height: '40px',
+                border: 'none',
+                background: 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: isDark ? '#FFFFFF' : '#0F172A',
+                fontSize: '20px',
+                fontWeight: 600,
+                transition: 'background 0.15s ease'
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Footer Location Card (Clean Place Name & Address, No Raw Codes) */}
+      {/* 5. Footer Bottom Sheet (Selected Location - Matching Image 2) */}
       <div
         className="map-picker-foot"
         style={{
-          background: 'var(--surface, #FFFFFF)',
-          borderTop: '1px solid var(--line, #E2E8F0)',
-          padding: '14px 16px'
+          background: isDark ? '#1C1C1E' : '#FFFFFF',
+          borderTopLeftRadius: '24px',
+          borderTopRightRadius: '24px',
+          boxShadow: isDark ? '0 -8px 30px rgba(0, 0, 0, 0.45)' : '0 -8px 30px rgba(0, 0, 0, 0.08)',
+          borderTop: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.06)',
+          padding: '12px 20px 24px',
+          zIndex: 10
         }}
       >
+        {/* Center Drag Handle Bar */}
+        <div
+          style={{
+            width: '38px',
+            height: '4px',
+            borderRadius: '2px',
+            background: isDark ? '#3F3F46' : '#CBD5E1',
+            margin: '0 auto 12px'
+          }}
+        />
+
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
             <span
               style={{
                 fontSize: '11px',
-                fontWeight: 750,
+                fontWeight: 800,
                 textTransform: 'uppercase',
-                color: 'var(--muted, #64748B)',
-                letterSpacing: '0.04em'
+                color: isDark ? '#94A3B8' : '#64748B',
+                letterSpacing: '0.06em'
               }}
             >
-              Selected Location
+              SELECTED LOCATION
             </span>
             {isGeocoding && (
-              <span style={{ fontSize: '11px', color: 'var(--yellow, #EAB308)', fontWeight: 600 }}>
+              <span style={{ fontSize: '11px', color: '#00D09C', fontWeight: 600 }}>
                 Updating location...
               </span>
             )}
           </div>
 
-          {/* Place Name (Locality / Area / Town) */}
+          {/* Place Name (Prominent & Bold) */}
           <div
             style={{
-              fontSize: '16px',
-              fontWeight: 750,
-              color: 'var(--ink, #0F172A)',
-              marginBottom: '2px',
-              lineHeight: 1.3
+              fontSize: '20px',
+              fontWeight: 850,
+              color: isDark ? '#FFFFFF' : '#0F172A',
+              marginBottom: '3px',
+              lineHeight: 1.25,
+              letterSpacing: '-0.02em'
             }}
           >
             {coordsInfo.name || 'Selected Location'}
           </div>
 
-          {/* Clean Readable Address (No Plus Codes / Location Codes) */}
+          {/* Clean Readable Address */}
           <div
             className="map-picker-addr"
             style={{
-              color: 'var(--muted, #64748B)',
-              fontSize: '12.5px',
+              color: isDark ? '#94A3B8' : '#64748B',
+              fontSize: '13px',
               fontWeight: 500,
-              lineHeight: 1.35
+              lineHeight: 1.4
             }}
           >
             {selectedAddr}
           </div>
 
           {gpsError && (
-            <div style={{ fontSize: '11px', color: '#E53935', marginTop: '3px' }}>
+            <div style={{ fontSize: '11px', color: '#EF4444', marginTop: '4px' }}>
               {gpsError}
             </div>
           )}
         </div>
 
-        <div style={{ marginTop: '12px' }}>
+        {/* Action Button: Confirm Location */}
+        <div style={{ marginTop: '16px' }}>
           <button
-            className="btn primary block"
+            type="button"
+            onClick={handleConfirm}
             style={{
               width: '100%',
-              height: '48px',
-              margin: 0,
+              height: '52px',
+              borderRadius: '18px',
+              background: isDark ? '#FFFFFF' : '#0E1626',
+              color: isDark ? '#0B0B0C' : '#FFFFFF',
+              fontSize: '16px',
               fontWeight: 750,
-              borderRadius: '14px',
-              fontSize: '15px',
-              background: '#000000',
-              color: '#FFFFFF',
-              cursor: 'pointer',
+              border: 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px'
+              gap: '8px',
+              cursor: 'pointer',
+              boxShadow: isDark ? '0 4px 14px rgba(255,255,255,0.1)' : '0 4px 14px rgba(14, 22, 38, 0.25)',
+              transition: 'all 0.15s ease'
             }}
-            onClick={handleConfirm}
           >
-            <Icon name="check" size={17} />
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
             <span>Confirm Location</span>
           </button>
         </div>

@@ -6163,11 +6163,21 @@ button.btn-primary:active,
    without affecting markers, vehicle pins, or satellite imagery.
    ========================================================================== */
 
+/* Minimalist Box Design Style Tile Filters for Leaflet Fallback */
+.map-picker-container.gmap-light-minimal .leaflet-tile {
+  filter: contrast(106%) brightness(101%) saturate(92%) hue-rotate(-5deg) !important;
+}
+
+[data-theme="dark"] .map-picker-container.gmap-dark-minimal .leaflet-tile,
+.map-picker-container.gmap-dark-minimal .leaflet-tile {
+  filter: invert(100%) hue-rotate(195deg) brightness(84%) contrast(112%) saturate(60%) !important;
+}
+
 /* Dark mode tile night styling (applied only to standard map, not satellite) */
-[data-theme="dark"] .map-picker-container:not(.layer-satellite) .leaflet-tile,
+[data-theme="dark"] .map-picker-container:not(.gmap-dark-minimal):not(.layer-satellite) .leaflet-tile,
 [data-theme="dark"] .gmap-container:not(.layer-satellite) .leaflet-tile,
 .gmap-dark-mode .leaflet-tile:not(.satellite-tile) {
-  filter: invert(100%) hue-rotate(180deg) brightness(92%) contrast(90%) saturate(125%) !important;
+  filter: invert(100%) hue-rotate(195deg) brightness(88%) contrast(108%) saturate(70%) !important;
 }
 
 /* Dark mode controls: background #202124 (Google Maps native dark surface) */
