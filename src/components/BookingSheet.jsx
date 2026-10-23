@@ -387,7 +387,7 @@ export default function BookingSheet() {
       return;
     }
 
-    const maxTravel = Math.max(window.innerHeight * 0.28, 180);
+    const maxTravel = Math.max(window.innerHeight * 0.33, 190);
     let progress = isSheetExpanded ? 1 - (deltaY / maxTravel) : (-deltaY / maxTravel);
     progress = Math.max(0, Math.min(1, progress));
 
@@ -478,7 +478,7 @@ export default function BookingSheet() {
       if (e.cancelable) e.preventDefault();
     }
 
-    const maxTravel = Math.max(window.innerHeight * 0.28, 180);
+    const maxTravel = Math.max(window.innerHeight * 0.33, 190);
     let progress = isSheetExpanded ? 1 - (deltaY / maxTravel) : (-deltaY / maxTravel);
     progress = Math.max(0, Math.min(1, progress));
 

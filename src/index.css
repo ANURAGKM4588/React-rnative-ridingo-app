@@ -9434,7 +9434,7 @@ body.standalone-app .nv.on {
   top: 68px;
   left: 0;
   right: 0;
-  bottom: 72vh;
+  bottom: 67vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -9682,14 +9682,14 @@ body.standalone-app .nv.on {
 }
 
 .bk-bottom-popup-sheet.visible {
-  transform: translate3d(0, calc(28vh * (1 - var(--drag-progress, 0))), 0);
-  transform: translate3d(0, calc(28dvh * (1 - var(--drag-progress, 0))), 0);
+  transform: translate3d(0, calc(33vh * (1 - var(--drag-progress, 0))), 0);
+  transform: translate3d(0, calc(33dvh * (1 - var(--drag-progress, 0))), 0);
 }
 
 .booking-fullscreen-view.is-dragging .bk-bottom-popup-sheet {
   transition: none !important;
-  transform: translate3d(0, calc(28vh * (1 - var(--drag-progress, 0))), 0) !important;
-  transform: translate3d(0, calc(28dvh * (1 - var(--drag-progress, 0))), 0) !important;
+  transform: translate3d(0, calc(33vh * (1 - var(--drag-progress, 0))), 0) !important;
+  transform: translate3d(0, calc(33dvh * (1 - var(--drag-progress, 0))), 0) !important;
 }
 
 /* Stage 2: Expanded Full Screen Sheet (Fills the entire full page covering) */
@@ -9705,8 +9705,8 @@ body.standalone-app .nv.on {
 }
 
 .booking-fullscreen-view.is-dragging .bk-bottom-popup-sheet.expanded {
-  transform: translate3d(0, calc(28vh * (1 - var(--drag-progress, 1))), 0) !important;
-  transform: translate3d(0, calc(28dvh * (1 - var(--drag-progress, 1))), 0) !important;
+  transform: translate3d(0, calc(33vh * (1 - var(--drag-progress, 1))), 0) !important;
+  transform: translate3d(0, calc(33dvh * (1 - var(--drag-progress, 1))), 0) !important;
   transition: none !important;
 }
 
