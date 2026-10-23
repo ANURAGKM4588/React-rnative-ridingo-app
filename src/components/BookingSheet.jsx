@@ -259,9 +259,11 @@ export default function BookingSheet() {
   };
 
   const fullscreenViewRef = useRef(null);
+  const dragStartXRef = useRef(0);
   const dragStartYRef = useRef(0);
   const dragStartTimeRef = useRef(0);
   const isDraggingRef = useRef(false);
+  const isHorizontalGestureRef = useRef(false);
   const currentDragProgressRef = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
   const isTransitioningRef = useRef(false);
@@ -326,15 +328,23 @@ export default function BookingSheet() {
       target.closest('input') ||
       target.closest('select') ||
       target.closest('.bk-trip-type-pill-btn') ||
+      target.closest('.bk-ref-trip-pill') ||
       target.closest('.home-date-card-3col') ||
       target.closest('.bk-date-card') ||
       target.closest('.bk-date-nav-btn') ||
       target.closest('.bk-date-month-pill') ||
+      target.closest('.bk-date-strip') ||
       target.closest('.bk-gearbox-pill-btn') ||
       target.closest('.bk-ref-gearbox-card') ||
       target.closest('.bk-ref-flight-input-tab') ||
       target.closest('.bk-ref-pay-capsule') ||
-      target.closest('.bk-map-round-btn')
+      target.closest('.bk-map-round-btn') ||
+      target.closest('.bk-route-card') ||
+      target.closest('.location-suggest-dropdown') ||
+      target.closest('.loc-suggest-item') ||
+      target.closest('.bk-map-pin-callout') ||
+      target.closest('.bk-map-pin-pickup') ||
+      target.closest('.bk-map-pin-drop')
     );
   };
 
@@ -344,6 +354,7 @@ export default function BookingSheet() {
     if (isInteractiveElement(e.target)) return;
 
     const clientY = e.clientY;
+    const clientX = e.clientX;
     const isTopEdge = clientY <= 130 ||
       Boolean(e.target.closest('.bk-map-top-bar'));
 
@@ -366,16 +377,25 @@ export default function BookingSheet() {
       // ignore
     }
 
+    dragStartXRef.current = clientX;
     dragStartYRef.current = clientY;
     dragStartTimeRef.current = performance.now();
     isDraggingRef.current = true;
+    isHorizontalGestureRef.current = false;
     currentDragProgressRef.current = isSheetExpanded ? 1 : 0;
   };
 
   const handleSheetPointerMove = (e) => {
     if (!isDraggingRef.current || isTransitioningRef.current) return;
 
+    const deltaX = Math.abs(e.clientX - dragStartXRef.current);
     const deltaY = e.clientY - dragStartYRef.current;
+
+    // Strict: Disallow horizontal drag. If drag has more horizontal movement than vertical, lock and ignore
+    if (isHorizontalGestureRef.current || (deltaX > Math.abs(deltaY) && deltaX > 6)) {
+      isHorizontalGestureRef.current = true;
+      return;
+    }
 
     // In Stage 2: if user moves upwards, ignore and let normal scrolling handle it
     if (isSheetExpanded && deltaY < 0) {
@@ -409,6 +429,12 @@ export default function BookingSheet() {
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
     setIsDragging(false);
+
+    if (isHorizontalGestureRef.current) {
+      isHorizontalGestureRef.current = false;
+      applyDragProgress(isSheetExpanded ? 1 : 0);
+      return;
+    }
 
     const deltaY = e.clientY - dragStartYRef.current;
     const deltaTime = Math.max(performance.now() - dragStartTimeRef.current, 1);
@@ -444,6 +470,7 @@ export default function BookingSheet() {
     if (isInteractiveElement(e.target)) return;
 
     const clientY = e.touches[0].clientY;
+    const clientX = e.touches[0].clientX;
     const isTopEdge = clientY <= 130 ||
       Boolean(e.target.closest('.bk-map-top-bar'));
 
@@ -460,16 +487,25 @@ export default function BookingSheet() {
       isTopEdgeDragRef.current = false;
     }
 
+    dragStartXRef.current = clientX;
     dragStartYRef.current = clientY;
     dragStartTimeRef.current = performance.now();
     isDraggingRef.current = true;
+    isHorizontalGestureRef.current = false;
     currentDragProgressRef.current = isSheetExpanded ? 1 : 0;
   };
 
   const handleSheetTouchMove = (e) => {
     if (!isDraggingRef.current || isTransitioningRef.current || !e.touches || !e.touches[0]) return;
 
+    const deltaX = Math.abs(e.touches[0].clientX - dragStartXRef.current);
     const deltaY = e.touches[0].clientY - dragStartYRef.current;
+
+    // Strict: Disallow horizontal drag. If drag has more horizontal movement than vertical, lock and ignore
+    if (isHorizontalGestureRef.current || (deltaX > Math.abs(deltaY) && deltaX > 6)) {
+      isHorizontalGestureRef.current = true;
+      return;
+    }
 
     if (isSheetExpanded && deltaY < 0) return;
     if (!isSheetExpanded && deltaY > 0) return;
@@ -493,6 +529,12 @@ export default function BookingSheet() {
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
     setIsDragging(false);
+
+    if (isHorizontalGestureRef.current) {
+      isHorizontalGestureRef.current = false;
+      applyDragProgress(isSheetExpanded ? 1 : 0);
+      return;
+    }
 
     const clientY = e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientY : dragStartYRef.current;
     const deltaY = clientY - dragStartYRef.current;
@@ -1614,7 +1656,18 @@ export default function BookingSheet() {
 
                   {/* 1. Sequentially displayed Pickup Standard Location Pin Icon (tip at 32, 36) */}
                   {animPickupPin && (
-                    <div className="anim-bounce-in bk-map-pin-pickup">
+                    <div
+                      className="anim-bounce-in bk-map-pin-pickup"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        expandSheet();
+                        setActiveSuggestField('pickup');
+                        setTimeout(() => pickupInputRef.current?.focus(), 150);
+                      }}
+                      title="Edit pickup location"
+                      style={{ cursor: 'pointer' }}
+                    >
                       <svg width="28" height="28" viewBox="0 0 24 24" fill={isDarkMode ? '#FFFFFF' : '#000000'}>
                         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
                       </svg>
@@ -1623,7 +1676,18 @@ export default function BookingSheet() {
 
                   {/* 2. Followed by Pickup Location Callout Badge (Beside pickup pin on same line) */}
                   {animPickupBox && (
-                    <div className="bk-map-pin-callout anim-bounce-in bk-map-callout-pickup">
+                    <div
+                      className="bk-map-pin-callout anim-bounce-in bk-map-callout-pickup"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        expandSheet();
+                        setActiveSuggestField('pickup');
+                        setTimeout(() => pickupInputRef.current?.focus(), 150);
+                      }}
+                      title="Edit pickup location"
+                      style={{ cursor: 'pointer' }}
+                    >
                       <div className="bk-map-callout-type">Pickup</div>
                       <div className="bk-map-callout-address">
                         {getShortMapLocation(pickup, 'Indiranagar')}
@@ -1633,7 +1697,18 @@ export default function BookingSheet() {
 
                   {/* 3. Destination Standard Location Pin Icon (tip at 305, 76) */}
                   {animDropPin && (
-                    <div className="anim-bounce-in bk-map-pin-drop">
+                    <div
+                      className="anim-bounce-in bk-map-pin-drop"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        expandSheet();
+                        setActiveSuggestField('drop');
+                        setTimeout(() => dropInputRef.current?.focus(), 150);
+                      }}
+                      title="Edit destination location"
+                      style={{ cursor: 'pointer' }}
+                    >
                       <svg width="28" height="28" viewBox="0 0 24 24" fill={isDarkMode ? '#FFFFFF' : '#000000'}>
                         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
                       </svg>
@@ -1642,7 +1717,18 @@ export default function BookingSheet() {
 
                   {/* 4. Followed by Destination Location Callout Badge (Beside destination pin to the left) */}
                   {animDropBox && (
-                    <div className="bk-map-pin-callout anim-bounce-in bk-map-callout-drop">
+                    <div
+                      className="bk-map-pin-callout anim-bounce-in bk-map-callout-drop"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        expandSheet();
+                        setActiveSuggestField('drop');
+                        setTimeout(() => dropInputRef.current?.focus(), 150);
+                      }}
+                      title="Edit destination location"
+                      style={{ cursor: 'pointer' }}
+                    >
                       <div className="bk-map-callout-type">Destination</div>
                       <div className="bk-map-callout-address">
                         {getShortMapLocation(drop, 'Cheranalloor Rd')}
@@ -1715,6 +1801,225 @@ export default function BookingSheet() {
                 ref={scrollBodyRef}
                 className="bk-popup-scroll-body"
               >
+                {/* Location Route Search Card (Google Maps stock autocomplete dropdown) */}
+                <div className="bk-route-card" style={{ marginBottom: '14px', position: 'relative', zIndex: activeSuggestField ? 9999 : 2 }}>
+                  <div className="bk-route-timeline">
+                    <div className="bk-timeline-dot pickup">
+                      <div className="bk-timeline-dot-inner" />
+                    </div>
+                    <div className="bk-timeline-dashed-line" />
+                    <div className="bk-timeline-dot drop">
+                      <div className="bk-timeline-dot-inner" style={{ background: '#EF4444' }} />
+                    </div>
+                  </div>
+
+                  <div className="bk-route-fields">
+                    {/* Pickup Input Section */}
+                    <div className="bk-route-section loc-input-wrap" style={{ position: 'relative', zIndex: activeSuggestField === 'pickup' ? 99999 : 1 }}>
+                      <div className="bk-route-header">
+                        <label className="bk-route-label" htmlFor="bk-pickup-input">PICKUP LOCATION</label>
+                        <button
+                          type="button"
+                          className="bk-route-action-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMapPickerTarget('pickup');
+                            setMapPickerOpen(true);
+                          }}
+                          title="Choose pickup on map"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+                            <line x1="9" y1="3" x2="9" y2="18" />
+                            <line x1="15" y1="6" x2="15" y2="21" />
+                          </svg>
+                          <span>Map</span>
+                        </button>
+                      </div>
+
+                      <div className="bk-route-input-wrap">
+                        <input
+                          ref={pickupInputRef}
+                          id="bk-pickup-input"
+                          type="text"
+                          className="bk-route-input"
+                          placeholder="Enter pickup location"
+                          value={pickup}
+                          onChange={(e) => handlePickupChange(e.target.value)}
+                          onFocus={() => {
+                            if (!isSheetExpanded) expandSheet();
+                            setActiveSuggestField('pickup');
+                            if (pickup?.trim()?.length >= 1) {
+                              handlePickupChange(pickup);
+                            }
+                          }}
+                          autoComplete="off"
+                        />
+                        {pickup && (
+                          <button
+                            type="button"
+                            className="bk-route-end-icon-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPickup('');
+                              setPickupCoords(null);
+                              setPickupSuggestions([]);
+                            }}
+                            aria-label="Clear pickup"
+                          >
+                            <Icon name="x" size={14} />
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          className="bk-route-end-icon-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUseCurrentLocation();
+                          }}
+                          title="Use current GPS location"
+                          disabled={isDetectingCurrent}
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <circle cx="12" cy="12" r="3" />
+                            <line x1="12" y1="2" x2="12" y2="5" />
+                            <line x1="12" y1="19" x2="12" y2="22" />
+                            <line x1="2" y1="12" x2="5" y2="12" />
+                            <line x1="19" y1="12" x2="22" y2="12" />
+                          </svg>
+                        </button>
+
+                        {/* Google Maps Stock Location Suggestions Dropdown for Pickup */}
+                        {activeSuggestField === 'pickup' && Boolean(pickup?.trim()?.length >= 1) && pickupSuggestions.length > 0 && (
+                          <div className="location-suggest-dropdown" style={{ zIndex: 99999, maxHeight: '250px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                            {pickupSuggestions.map((item, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                className="loc-suggest-item"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => handleSelectPickupPlace(item)}
+                              >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="#70757a" style={{ flexShrink: 0, marginTop: '2px' }} aria-hidden="true">
+                                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                                </svg>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: '13.5px', color: isDarkMode ? '#FFFFFF' : '#202124', lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {highlightMatchGoogleStock(item.title, pickup)}
+                                  </div>
+                                  {item.sub && (
+                                    <div style={{ fontSize: '11.5px', color: isDarkMode ? '#94A3B8' : '#70757a', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>
+                                      {item.sub}
+                                    </div>
+                                  )}
+                                </div>
+                              </button>
+                            ))}
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '6px 14px', borderTop: isDarkMode ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)' }}>
+                              <span style={{ fontSize: '11px', color: isDarkMode ? '#94A3B8' : '#70757a', marginRight: '4px' }}>powered by Google</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bk-route-divider" />
+
+                    {/* Destination Input Section */}
+                    <div className="bk-route-section loc-input-wrap" style={{ position: 'relative', zIndex: activeSuggestField === 'drop' ? 99999 : 1 }}>
+                      <div className="bk-route-header">
+                        <label className="bk-route-label" htmlFor="bk-drop-input">DESTINATION LOCATION</label>
+                        <button
+                          type="button"
+                          className="bk-route-action-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMapPickerTarget('drop');
+                            setMapPickerOpen(true);
+                          }}
+                          title="Choose destination on map"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+                            <line x1="9" y1="3" x2="9" y2="18" />
+                            <line x1="15" y1="6" x2="15" y2="21" />
+                          </svg>
+                          <span>Map</span>
+                        </button>
+                      </div>
+
+                      <div className="bk-route-input-wrap">
+                        <input
+                          ref={dropInputRef}
+                          id="bk-drop-input"
+                          type="text"
+                          className="bk-route-input"
+                          placeholder="Enter destination location"
+                          value={drop}
+                          onChange={(e) => handleDropChange(e.target.value)}
+                          onFocus={() => {
+                            if (!isSheetExpanded) expandSheet();
+                            setActiveSuggestField('drop');
+                            if (drop?.trim()?.length >= 1) {
+                              handleDropChange(drop);
+                            }
+                          }}
+                          autoComplete="off"
+                        />
+                        {drop && (
+                          <button
+                            type="button"
+                            className="bk-route-end-icon-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDrop('');
+                              setDropCoords(null);
+                              setDropSuggestions([]);
+                            }}
+                            aria-label="Clear destination"
+                          >
+                            <Icon name="x" size={14} />
+                          </button>
+                        )}
+
+                        {/* Google Maps Stock Location Suggestions Dropdown for Destination */}
+                        {activeSuggestField === 'drop' && Boolean(drop?.trim()?.length >= 1) && dropSuggestions.length > 0 && (
+                          <div className="location-suggest-dropdown" style={{ zIndex: 99999, maxHeight: '250px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                            {dropSuggestions.map((item, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                className="loc-suggest-item"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => handleSelectDropPlace(item)}
+                              >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="#70757a" style={{ flexShrink: 0, marginTop: '2px' }} aria-hidden="true">
+                                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                                </svg>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: '13.5px', color: isDarkMode ? '#FFFFFF' : '#202124', lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {highlightMatchGoogleStock(item.title, drop)}
+                                  </div>
+                                  {item.sub && (
+                                    <div style={{ fontSize: '11.5px', color: isDarkMode ? '#94A3B8' : '#70757a', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>
+                                      {item.sub}
+                                    </div>
+                                  )}
+                                </div>
+                              </button>
+                            ))}
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '6px 14px', borderTop: isDarkMode ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)' }}>
+                              <span style={{ fontSize: '11px', color: isDarkMode ? '#94A3B8' : '#70757a', marginRight: '4px' }}>powered by Google</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Distance and Estimated Arrival Bar */}
                 <div className="bk-ref-telemetry-card">
                   <div className="bk-ref-telem-item">
