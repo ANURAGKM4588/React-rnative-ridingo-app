@@ -1874,14 +1874,14 @@ Live GPS Tracking: ${trackUrl}`;
 
         {/* Route Fields (Two Separate Capsules with Dashed Connector Line) */}
         <div style={{ position: 'relative', zIndex: 1, marginBottom: '14px' }}>
-          {/* Top-layer Continuous Dashed Route Line connecting Pickup to Destination (with neat gap spacing from pins) */}
+          {/* Top-layer Continuous Dashed Route Line connecting Pickup to Destination (with generous gap spacing from pins) */}
           <div
             aria-hidden="true"
             style={{
               position: 'absolute',
               left: '24px',
-              top: '43px',
-              bottom: '43px',
+              top: '54px',
+              bottom: '54px',
               width: 0,
               borderLeft: isDark ? '2.2px dashed #94A3B8' : '2.2px dashed #94A3B8',
               zIndex: 10,
