@@ -159,7 +159,9 @@ export default function BookingSheet() {
   const [drop, setDrop] = useState('');
   const [selectedDate, setSelectedDate] = useState(getTodayISO);
   const [selectedTime, setSelectedTime] = useState(getDefaultTime);
-  const [trans, setTrans] = useState('Manual');
+  const [trans, setTrans] = useState(null); // No default selection for gearbox
+  const isDateManuallySelectedRef = useRef(false);
+  const isTimeManuallySelectedRef = useRef(false);
   const [airportType, setAirportType] = useState('pickup'); // 'pickup' | 'drop'
   const [flightNo, setFlightNo] = useState('');
   const [driverEarlyBuffer, setDriverEarlyBuffer] = useState('30m'); // '15m' | '30m' | '45m' | 'exact'
@@ -979,18 +981,22 @@ export default function BookingSheet() {
       // Pre-fill or reset date
       if (bookingDate) {
         setSelectedDate(bookingDate);
+        isDateManuallySelectedRef.current = true;
       } else {
-        setSelectedDate(prev => {
-          const today = getTodayISO();
-          return prev < today ? today : prev;
-        });
+        setSelectedDate(getTodayISO());
+        isDateManuallySelectedRef.current = false;
       }
 
       // Pre-fill or reset time
       if (bookingTime) {
         setSelectedTime(bookingTime);
+        isTimeManuallySelectedRef.current = true;
+      } else {
+        setSelectedTime(getDefaultTime());
+        isTimeManuallySelectedRef.current = false;
       }
 
+      setTrans(null); // No default gearbox selection
       setFlightNo('');
       setPickupSuggestions([]);
       setDropSuggestions([]);
@@ -1111,6 +1117,7 @@ export default function BookingSheet() {
   };
 
   const handleTimeStep = (deltaMinutes) => {
+    isTimeManuallySelectedRef.current = true;
     const parts = (selectedTime || '18:00').split(':');
     let totalMins = parseInt(parts[0] || '18', 10) * 60 + parseInt(parts[1] || '0', 10) + deltaMinutes;
     if (totalMins < 0) totalMins += 24 * 60;
@@ -1281,6 +1288,43 @@ export default function BookingSheet() {
     }
   }, [selectedDate]);
 
+  // Live background auto-update: Keeps default date and time fresh every minute/day
+  // If the user manually picks a date or time, it locks their choice and does NOT auto-change
+  useEffect(() => {
+    const syncLiveDateAndTime = () => {
+      // 1. Live Date sync (resets when day changes if user has not picked a date manually)
+      if (!isDateManuallySelectedRef.current) {
+        const liveToday = getTodayISO();
+        setSelectedDate(prev => (prev !== liveToday ? liveToday : prev));
+      }
+
+      // 2. Live Time sync (updates every minute to the current rounded 15-min slot if user has not picked time manually)
+      if (!isTimeManuallySelectedRef.current) {
+        const liveDefaultTime = getDefaultTime();
+        setSelectedTime(prev => (prev !== liveDefaultTime ? liveDefaultTime : prev));
+      }
+    };
+
+    // Run every 20 seconds to keep live time and date exact
+    const intervalId = setInterval(syncLiveDateAndTime, 20000);
+
+    const handleVisChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        syncLiveDateAndTime();
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisChange);
+    }
+
+    return () => {
+      clearInterval(intervalId);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisChange);
+      }
+    };
+  }, []);
+
   const handleSubmit = async () => {
     try {
       const cleanPickup = pickup?.trim();
@@ -1395,7 +1439,9 @@ export default function BookingSheet() {
     setQty(3);
     setSelectedDate(getTodayISO());
     setSelectedTime(getDefaultTime());
-    setTrans('Manual');
+    isDateManuallySelectedRef.current = false;
+    isTimeManuallySelectedRef.current = false;
+    setTrans(null);
     setShakingLocationField(null);
     if (setBookingDestination) {
       setBookingDestination('');
@@ -1818,7 +1864,10 @@ export default function BookingSheet() {
                         type="time"
                         value={selectedTime}
                         onChange={(e) => {
-                          if (e.target.value) setSelectedTime(e.target.value);
+                          if (e.target.value) {
+                            isTimeManuallySelectedRef.current = true;
+                            setSelectedTime(e.target.value);
+                          }
                         }}
                         style={{
                           position: 'absolute',
@@ -1881,7 +1930,10 @@ export default function BookingSheet() {
                         min={todayISO}
                         value={selectedDate}
                         onChange={(e) => {
-                          if (e.target.value) setSelectedDate(e.target.value);
+                          if (e.target.value) {
+                            isDateManuallySelectedRef.current = true;
+                            setSelectedDate(e.target.value);
+                          }
                         }}
                         style={{
                           position: 'absolute',
@@ -1912,7 +1964,7 @@ export default function BookingSheet() {
                       </svg>
                     </button>
 
-                    {/* Horizontal Date Cards Strip */}
+                    {/* Horizontal Date Cards Strip (Without Tick Badge) */}
                     <div className="bk-date-strip" ref={dateStripRef}>
                       {dateList.map((item) => {
                         const isSelected = selectedDate === item.iso;
@@ -1921,17 +1973,13 @@ export default function BookingSheet() {
                             key={item.iso}
                             data-date={item.iso}
                             className={`bk-date-card ${isSelected ? 'active' : ''}`}
-                            onClick={() => setSelectedDate(item.iso)}
+                            onClick={() => {
+                              isDateManuallySelectedRef.current = true;
+                              setSelectedDate(item.iso);
+                            }}
                           >
                             <span className="bk-date-card-day">{item.dayName}</span>
                             <span className="bk-date-card-num">{item.dayNum}</span>
-                            {isSelected && (
-                              <div className="bk-date-card-check-badge">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                              </div>
-                            )}
                           </div>
                         );
                       })}
@@ -1951,62 +1999,96 @@ export default function BookingSheet() {
                   </div>
                 </div>
 
-                {/* Vehicle gearbox */}
-                <div className="bk-ref-section-title">Vehicle gearbox</div>
+                {/* Vehicle gearbox (Reference Image Design - Black & White) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+                  <div className="bk-ref-section-title" style={{ margin: 0 }}>Vehicle gearbox</div>
+                  <button
+                    type="button"
+                    style={{ background: 'none', border: 'none', padding: '2px', cursor: 'pointer', color: '#64748B', display: 'flex', alignItems: 'center' }}
+                    title="Select vehicle transmission type"
+                    onClick={() => addToast && addToast('Manual, Automatic, or IMT based on your car type', 'info')}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="16" x2="12" y2="12" />
+                      <line x1="12" y1="8" x2="12.01" y2="8" />
+                    </svg>
+                  </button>
+                </div>
+
                 <div className="bk-ref-gearbox-grid">
                   {[
                     {
                       id: 'Manual',
-                      label: 'Manual',
+                      title: 'Manual',
+                      desc: 'Full control, better mileage',
                       icon: (
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M6 5v14" />
-                          <path d="M12 5v14" />
-                          <path d="M18 5v14" />
-                          <path d="M6 12h12" />
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="6" y1="5" x2="6" y2="19" />
+                          <line x1="12" y1="5" x2="12" y2="19" />
+                          <line x1="18" y1="5" x2="18" y2="19" />
+                          <line x1="6" y1="12" x2="18" y2="12" />
+                          <circle cx="6" cy="5" r="1.5" fill="currentColor" />
+                          <circle cx="12" cy="5" r="1.5" fill="currentColor" />
+                          <circle cx="18" cy="5" r="1.5" fill="currentColor" />
+                          <circle cx="6" cy="19" r="1.5" fill="currentColor" />
+                          <circle cx="12" cy="19" r="1.5" fill="currentColor" />
+                          <circle cx="18" cy="19" r="1.5" fill="currentColor" />
                         </svg>
                       )
                     },
                     {
                       id: 'Automatic',
-                      label: 'Automatic',
+                      title: 'Automatic',
+                      desc: 'Smooth & comfortable',
                       icon: (
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="m8 16 4-8 4 8" />
-                          <path d="M9.5 13h5" />
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 12a9 9 0 0 0-15.3-6.4L3 8" />
+                          <polyline points="3 3 3 8 8 8" />
+                          <path d="M3 12a9 9 0 0 0 15.3 6.4L21 16" />
+                          <polyline points="21 21 21 16 16 16" />
+                          <path d="m9 15 3-6 3 6" />
+                          <path d="M10 13h4" />
                         </svg>
                       )
                     },
                     {
                       id: 'IMT',
-                      label: 'IMT',
+                      title: 'IMT',
+                      desc: 'Manual feel, clutch-free',
                       icon: (
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="3" />
+                          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
                         </svg>
                       )
                     }
                   ].map(item => {
                     const isActive = trans === item.id;
                     return (
-                      <button
+                      <div
                         key={item.id}
-                        type="button"
-                        onClick={() => setTrans(item.id)}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setTrans(prev => prev === item.id ? null : item.id)}
                         className={`bk-ref-gearbox-card ${isActive ? 'active' : ''}`}
                       >
-                        {item.icon}
-                        <span>{item.label}</span>
-                        {isActive && (
-                          <span className="bk-ref-check-badge">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          </span>
-                        )}
-                      </button>
+                        <div className="bk-gearbox-top-row">
+                          <div className="bk-gearbox-icon-circle">
+                            {item.icon}
+                          </div>
+                          <div className="bk-gearbox-radio">
+                            {isActive && (
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="bk-gearbox-title">{item.title}</div>
+                        <div className="bk-gearbox-desc">{item.desc}</div>
+                      </div>
                     );
                   })}
                 </div>
