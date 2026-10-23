@@ -1871,13 +1871,28 @@ Live GPS Tracking: ${trackUrl}`;
 
         {/* Route Fields (Two Separate Capsules with Dashed Connector Line) */}
         <div style={{ position: 'relative', zIndex: 1, marginBottom: '14px' }}>
+          {/* Top-layer Continuous Dashed Route Line connecting Pickup to Destination */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              left: '24px',
+              top: '36px',
+              bottom: '36px',
+              width: 0,
+              borderLeft: '2.2px dashed #94A3B8',
+              zIndex: 10,
+              pointerEvents: 'none'
+            }}
+          />
+
           {/* Pickup Capsule */}
           <div
             className={`home-capsule-input-box ${homeShakingField === 'pickup' ? 'shake-attention' : ''}`}
-            style={{ zIndex: homeActiveSuggestField === 'pickup' ? 9999 : 2 }}
+            style={{ zIndex: homeActiveSuggestField === 'pickup' ? 9999 : 2, marginBottom: '10px' }}
           >
             {/* Green Location Pin */}
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="#10B981" style={{ flexShrink: 0 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#10B981" style={{ flexShrink: 0, position: 'relative', zIndex: 11 }}>
               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
             </svg>
 
@@ -1968,16 +1983,13 @@ Live GPS Tracking: ${trackUrl}`;
             )}
           </div>
 
-          {/* Dashed connector line (Aligned directly between pins) */}
-          <div style={{ width: 0, height: '14px', borderLeft: '2.2px dashed #94A3B8', marginLeft: '27px', margin: '2px 0 2px 27px', display: 'block' }} />
-
           {/* Destination Capsule */}
           <div
             className={`home-capsule-input-box ${homeShakingField === 'drop' ? 'shake-attention' : ''}`}
             style={{ zIndex: homeActiveSuggestField === 'drop' ? 9999 : 1 }}
           >
             {/* Red Location Pin */}
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="#EF4444" style={{ flexShrink: 0 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#EF4444" style={{ flexShrink: 0, position: 'relative', zIndex: 11 }}>
               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
             </svg>
 
