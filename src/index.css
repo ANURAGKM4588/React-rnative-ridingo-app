@@ -9223,49 +9223,19 @@ body.standalone-app .nv.on {
 
 @media (min-width: 960px) {
   .home-hero-split-grid {
-    display: grid !important;
-    grid-template-columns: minmax(460px, 540px) 1fr !important;
-    gap: 32px !important;
-    align-items: start !important;
-    margin-top: 14px;
-    margin-bottom: 24px;
+    display: block !important;
+    max-width: 580px !important;
+    margin: 14px auto 24px !important;
   }
 
   .home-hero-col-booking {
-    position: sticky;
-    top: 16px;
-    z-index: 5;
+    width: 100% !important;
   }
 
   .home-hero-col-booking .home-booking-hero-card {
-    margin: 0 !important;
+    margin: 0 auto !important;
     max-width: 100% !important;
     box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.04) !important;
-  }
-
-  .home-hero-col-companion {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    min-width: 0;
-  }
-
-  .home-hero-col-companion .offer-banners-wrap {
-    margin: 0 !important;
-    max-width: 100% !important;
-  }
-
-  .home-trust-assurance-card {
-    background: var(--card, #FFFFFF);
-    border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
-    border-radius: 24px;
-    padding: 20px 24px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-  }
-
-  :root[data-theme="dark"] .home-trust-assurance-card {
-    background: rgba(28, 28, 30, 0.85);
-    border-color: rgba(255, 255, 255, 0.08);
   }
 }
 
@@ -9382,6 +9352,9 @@ body.standalone-app .nv.on {
   justify-content: center;
   color: #0F172A;
   cursor: pointer;
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 80;
   transition: transform 0.15s ease, background-color 0.15s ease;
   flex-shrink: 0;
 }

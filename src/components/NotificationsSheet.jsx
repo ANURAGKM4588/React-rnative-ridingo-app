@@ -245,6 +245,7 @@ function MinimalNotifCard({
   onClaimOffer,
   onViewOfferDetails,
   onDismiss,
+  onRateDriver,
   isClearingAll = false
 }) {
   const [copied, setCopied] = useState(false);
@@ -253,6 +254,7 @@ function MinimalNotifCard({
     note.category === 'promo' ||
     note.category === 'offer' ||
     (note.title && /offer|cashback|pass|discount|promo/i.test(note.title));
+  const isTripRating = Boolean(note.canRate || note.category === 'trip_rating' || (note.title && /trip completed/i.test(note.title)));
 
   const isGift = note.icon === 'gift' || note.icon === 'star';
   const isCar = note.icon === 'car';
@@ -418,6 +420,37 @@ function MinimalNotifCard({
             </p>
           ) : null}
 
+          {/* Quick Rate Driver button for trip completion notifications */}
+          {isTripRating && (
+            <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                style={{
+                  height: '30px',
+                  padding: '0 12px',
+                  borderRadius: '8px',
+                  fontSize: '11.5px',
+                  fontWeight: 750,
+                  background: '#0F172A',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 8px rgba(15, 23, 42, 0.15)'
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onRateDriver) onRateDriver(note);
+                }}
+              >
+                <Icon name="star" size={12} style={{ color: '#FACC15' }} />
+                <span>Rate Driver</span>
+              </button>
+            </div>
+          )}
+
           {/* Smooth Expanding Body */}
           <AnimatePresence initial={false}>
             {isExpanded && (
@@ -574,7 +607,10 @@ export default function NotificationsSheet() {
     clearAllNotifs,
     addToast,
     setBookingCategory,
-    setBookingOpen
+    setBookingOpen,
+    setTripCompleteModalOpen,
+    setCompletedTripData,
+    trips
   } = useApp();
 
   const [expandedId, setExpandedId] = useState(null);
@@ -635,6 +671,25 @@ export default function NotificationsSheet() {
       category: note.category || 'hourly',
       terms: note.terms
     });
+  };
+
+  const handleRateDriver = (note) => {
+    let targetTrip = note.trip;
+    if (!targetTrip && note.tripId && trips) {
+      targetTrip = trips.find(t => t.id === note.tripId);
+    }
+    if (!targetTrip) {
+      targetTrip = {
+        id: note.tripId || 'trp-completed',
+        driver: note.driverName || 'Driver',
+        status: 'completed',
+        fare: note.fare || 750
+      };
+    }
+    markNotifRead(note.id);
+    if (setCompletedTripData) setCompletedTripData(targetTrip);
+    if (setTripCompleteModalOpen) setTripCompleteModalOpen(true);
+    setNotifsOpen(false);
   };
 
   const hasNotes = unotes && unotes.length > 0;
@@ -801,6 +856,7 @@ export default function NotificationsSheet() {
                         onClaimOffer={handleClaimOffer}
                         onViewOfferDetails={handleViewOfferDetails}
                         onDismiss={handleDismissSingle}
+                        onRateDriver={handleRateDriver}
                         isClearingAll={isClearingAll}
                       />
                     ))}

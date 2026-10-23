@@ -6,6 +6,7 @@ import { downloadTripReceiptPdf } from '../utils/receiptPdfGenerator';
 import { generateTripInvoiceText, shareInvoiceViaWhatsApp, shareInvoiceViaEmail } from '../utils/tripInvoiceSharing';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
+import { supabase } from '../lib/supabase';
 
 export default function TripCompleteModal({ trip: propTrip, onClose }) {
   const {
@@ -126,6 +127,43 @@ export default function TripCompleteModal({ trip: propTrip, onClose }) {
       };
       localStorage.setItem('ridingo_trip_reviews', JSON.stringify(reviews));
     } catch (_) {}
+
+    // Collect all review and rating into the database
+    if (supabase && typeof supabase.from === 'function' && trip?.id) {
+      try {
+        supabase
+          .from('trips')
+          .update({
+            rating,
+            user_rating: rating,
+            feedback: selectedFeedback,
+            review_text: reviewComment,
+            rated_at: new Date().toISOString()
+          })
+          .eq('id', trip.id)
+          .then(({ error }) => {
+            if (error) console.info('[Supabase] Trip rating update info:', error.message);
+          });
+
+        supabase
+          .from('trip_reviews')
+          .insert({
+            trip_id: trip.id,
+            driver_name: driverName,
+            user_id: user?.id || null,
+            user_name: user?.name || 'Customer',
+            rating,
+            feedback: selectedFeedback,
+            review: reviewComment,
+            created_at: new Date().toISOString()
+          })
+          .then(({ error }) => {
+            if (error) console.info('[Supabase] trip_reviews notice:', error.message);
+          });
+      } catch (dbErr) {
+        console.warn('[Supabase] Database review collection error:', dbErr);
+      }
+    }
 
     if (addToast) {
       addToast(`Thank you! Rated ${rating} stars for ${driverName}.`, 'check');

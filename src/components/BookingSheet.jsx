@@ -1332,12 +1332,34 @@ export default function BookingSheet() {
       const cleanPickup = pickup?.trim();
       if (!cleanPickup) {
         triggerLocationShake('pickup');
+        addToast('Please enter pickup location', 'alert');
         return;
       }
 
       const cleanDrop = drop?.trim();
       if (!cleanDrop) {
         triggerLocationShake('drop');
+        addToast('Please enter destination location', 'alert');
+        return;
+      }
+
+      if (cat === 'airport' && !flightNo?.trim()) {
+        addToast('Please enter flight number', 'alert');
+        return;
+      }
+
+      if (!selectedDate) {
+        addToast('Please select trip date', 'alert');
+        return;
+      }
+
+      if (!selectedTime) {
+        addToast('Please select pickup time', 'alert');
+        return;
+      }
+
+      if (!trans) {
+        addToast('Please select vehicle gearbox', 'alert');
         return;
       }
 
@@ -1645,14 +1667,13 @@ export default function BookingSheet() {
               <button
                 type="button"
                 className="bk-map-round-btn"
-                onClick={() => {
-                  if (isSheetExpanded) {
-                    minimizeSheet();
-                  } else {
-                    handleClose();
-                  }
+                onPointerDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClose();
                 }}
-                aria-label={isSheetExpanded ? 'Minimize sheet' : 'Back to home'}
+                aria-label="Back to home"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="m15 18-6-6 6-6" />

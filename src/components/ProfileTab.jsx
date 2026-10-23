@@ -8,12 +8,26 @@ import {
   setSelectedCustomTune,
   playCustomTone
 } from '../utils/audioTones';
+import { searchGooglePlaces } from '../services/googleMapsService';
 
 export default function ProfileTab() {
-  const { user, updateUserProfile, userTheme, setUserTheme, logout, addToast, openLegal, setView } = useApp();
+  const {
+    user,
+    updateUserProfile,
+    userTheme,
+    setUserTheme,
+    logout,
+    addToast,
+    openLegal,
+    setView,
+    savedHomeLoc,
+    savedWorkLoc,
+    savedPlacesLoc,
+    updateSavedLocation
+  } = useApp();
 
   // Active Minimal Modal:
-  // null | 'editProfile' | 'sos' | 'temp' | 'lang' | 'concierge' | 'notif_alerts' | 'notif_whatsapp' | 'notif_promo' | 'app_biometric' | 'app_haptic'
+  // null | 'editProfile' | 'editLocation' | 'sos' | 'temp' | 'lang' | 'concierge' | 'notif_alerts' | 'notif_whatsapp' | 'notif_promo' | 'app_biometric' | 'app_haptic'
   const [activeModal, setActiveModal] = useState(null);
   const [mountNode, setMountNode] = useState(null);
 
@@ -31,6 +45,63 @@ export default function ProfileTab() {
   const [editAvatar, setEditAvatar] = useState(user?.avatar || '');
   const [customTune, setCustomTune] = useState(getSelectedCustomTune());
   const fileInputRef = useRef(null);
+
+  // Saved Location editing state
+  const [editingLocType, setEditingLocType] = useState(null); // 'home' | 'work' | 'saved'
+  const [editingLocAddress, setEditingLocAddress] = useState('');
+  const [locSuggestions, setLocSuggestions] = useState([]);
+
+  const handleOpenEditLocation = (type) => {
+    setEditingLocType(type);
+    const curVal = type === 'home' ? (savedHomeLoc || '') : type === 'work' ? (savedWorkLoc || '') : (savedPlacesLoc || '');
+    setEditingLocAddress(curVal);
+    setLocSuggestions([]);
+    setActiveModal('editLocation');
+  };
+
+  const handleLocInputChange = async (val) => {
+    setEditingLocAddress(val);
+    if (!val || val.trim().length < 2) {
+      setLocSuggestions([]);
+      return;
+    }
+    try {
+      const results = await searchGooglePlaces(val);
+      setLocSuggestions(results || []);
+    } catch (_) {
+      setLocSuggestions([]);
+    }
+  };
+
+  const handleSelectLocSuggestion = (item) => {
+    const full = item.title + (item.sub ? `, ${item.sub}` : '');
+    setEditingLocAddress(full);
+    setLocSuggestions([]);
+  };
+
+  const handleSaveLocationSetting = (e) => {
+    if (e) e.preventDefault();
+    const val = editingLocAddress.trim();
+    if (!val) {
+      addToast('Please enter an address or choose from suggestions', 'warn');
+      return;
+    }
+    if (updateSavedLocation) {
+      updateSavedLocation(editingLocType, val);
+    }
+    const label = editingLocType === 'home' ? 'Home' : editingLocType === 'work' ? 'Work' : 'Saved Place';
+    addToast(`${label} address updated: ${val.split(',')[0]}`, 'check');
+    setActiveModal(null);
+  };
+
+  const handleClearLocationSetting = () => {
+    if (updateSavedLocation) {
+      updateSavedLocation(editingLocType, '');
+    }
+    const label = editingLocType === 'home' ? 'Home' : editingLocType === 'work' ? 'Work' : 'Saved Place';
+    addToast(`${label} address removed`, 'info');
+    setActiveModal(null);
+  };
 
   useEffect(() => {
     if (activeModal === 'editProfile') {
@@ -283,6 +354,82 @@ export default function ProfileTab() {
             <span style={{ fontSize: '12.5px', color: 'var(--muted)', fontWeight: 500 }}>
               Member since 2024
             </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 2.5 SAVED PLACES & ADDRESSES */}
+      <div className="prof-section-title stagger-2">Saved Places &amp; Addresses</div>
+      <div className="card stagger-2" style={{ padding: '0 16px', borderRadius: '18px', marginBottom: '20px' }}>
+        {/* Home Location */}
+        <div
+          className="prof-set-row"
+          style={{ cursor: 'pointer' }}
+          onClick={() => handleOpenEditLocation('home')}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0F172A', flexShrink: 0 }}>
+              <Icon name="home" size={16} />
+            </div>
+            <div className="prof-set-info" style={{ flex: 1, minWidth: 0 }}>
+              <b className="prof-set-title">Home Address</b>
+              <span className="prof-set-sub" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {savedHomeLoc ? savedHomeLoc : 'Not configured · Tap to set'}
+              </span>
+            </div>
+          </div>
+          <div className="prof-set-action-btn">
+            <span>{savedHomeLoc ? 'Edit' : 'Add'}</span>
+            <Icon name="chevronRight" size={15} />
+          </div>
+        </div>
+
+        {/* Work Location */}
+        <div
+          className="prof-set-row"
+          style={{ cursor: 'pointer' }}
+          onClick={() => handleOpenEditLocation('work')}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0F172A', flexShrink: 0 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="20" height="14" x="2" y="7" rx="2" ry="2" />
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+              </svg>
+            </div>
+            <div className="prof-set-info" style={{ flex: 1, minWidth: 0 }}>
+              <b className="prof-set-title">Work Address</b>
+              <span className="prof-set-sub" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {savedWorkLoc ? savedWorkLoc : 'Not configured · Tap to set'}
+              </span>
+            </div>
+          </div>
+          <div className="prof-set-action-btn">
+            <span>{savedWorkLoc ? 'Edit' : 'Add'}</span>
+            <Icon name="chevronRight" size={15} />
+          </div>
+        </div>
+
+        {/* Saved Places */}
+        <div
+          className="prof-set-row"
+          style={{ cursor: 'pointer' }}
+          onClick={() => handleOpenEditLocation('saved')}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0F172A', flexShrink: 0 }}>
+              <Icon name="star" size={16} />
+            </div>
+            <div className="prof-set-info" style={{ flex: 1, minWidth: 0 }}>
+              <b className="prof-set-title">Saved Places</b>
+              <span className="prof-set-sub" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {savedPlacesLoc ? savedPlacesLoc : 'Frequent destinations & favorites'}
+              </span>
+            </div>
+          </div>
+          <div className="prof-set-action-btn">
+            <span>{savedPlacesLoc ? 'Edit' : 'Add'}</span>
+            <Icon name="chevronRight" size={15} />
           </div>
         </div>
       </div>
@@ -671,6 +818,7 @@ export default function ProfileTab() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
               <h3 style={{ fontSize: '17px', fontWeight: 800, margin: 0, color: 'var(--ink)' }}>
                 {activeModal === 'editProfile' && 'Edit Profile & Details'}
+                {activeModal === 'editLocation' && `Edit ${editingLocType === 'home' ? 'Home' : editingLocType === 'work' ? 'Work' : 'Saved Place'} Address`}
                 {activeModal === 'sos' && 'Emergency SOS Contacts'}
                 {activeModal === 'temp' && 'Cabin Climate & AC'}
                 {activeModal === 'lang' && 'Driver Languages'}
@@ -704,6 +852,128 @@ export default function ProfileTab() {
                 <Icon name="x" size={14} />
               </button>
             </div>
+
+            {/* MODAL: EDIT SAVED LOCATION */}
+            {activeModal === 'editLocation' && (
+              <form onSubmit={handleSaveLocationSetting} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--muted)', lineHeight: 1.4 }}>
+                  Set your {editingLocType === 'home' ? 'Home' : editingLocType === 'work' ? 'Work' : 'Saved Place'} address for instant 1-tap bookings on the home screen.
+                </p>
+
+                <div style={{ position: 'relative' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--muted)', marginBottom: '5px' }}>
+                    {editingLocType === 'home' ? 'Home Address' : editingLocType === 'work' ? 'Work Address' : 'Saved Place Address'}
+                  </label>
+                  <input
+                    type="text"
+                    value={editingLocAddress}
+                    onChange={(e) => handleLocInputChange(e.target.value)}
+                    placeholder={editingLocType === 'home' ? 'e.g., 14 Anna Nagar, Chennai' : editingLocType === 'work' ? 'e.g., Cyber Park, OMR, Chennai' : 'e.g., Phoenix Marketcity'}
+                    autoFocus
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '12px 14px',
+                      borderRadius: '12px',
+                      border: '1.5px solid var(--line)',
+                      background: 'var(--field)',
+                      color: 'var(--ink)',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      outline: 'none'
+                    }}
+                  />
+
+                  {/* Location suggestions dropdown */}
+                  {locSuggestions.length > 0 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        zIndex: 99999,
+                        marginTop: '4px',
+                        background: 'var(--surface)',
+                        border: '1px solid var(--line)',
+                        borderRadius: '12px',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                        maxHeight: '180px',
+                        overflowY: 'auto'
+                      }}
+                    >
+                      {locSuggestions.map((item, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => handleSelectLocSuggestion(item)}
+                          style={{
+                            padding: '10px 12px',
+                            cursor: 'pointer',
+                            borderBottom: idx < locSuggestions.length - 1 ? '1px solid var(--line)' : 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--muted)', flexShrink: 0 }}>
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                          </svg>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {item.title}
+                            </div>
+                            {item.sub && (
+                              <div style={{ fontSize: '11px', color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {item.sub}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                  {(editingLocType === 'home' ? savedHomeLoc : editingLocType === 'work' ? savedWorkLoc : savedPlacesLoc) && (
+                    <button
+                      type="button"
+                      onClick={handleClearLocationSetting}
+                      style={{
+                        height: '42px',
+                        padding: '0 14px',
+                        borderRadius: '12px',
+                        background: 'transparent',
+                        border: '1.5px solid #EF4444',
+                        color: '#EF4444',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    style={{
+                      flex: 1,
+                      height: '42px',
+                      borderRadius: '12px',
+                      background: 'var(--solid)',
+                      color: 'var(--on-solid)',
+                      border: 'none',
+                      fontSize: '13.5px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 14px rgba(0,0,0,0.15)'
+                    }}
+                  >
+                    Save Address
+                  </button>
+                </div>
+              </form>
+            )}
 
             {/* MODAL 1: EDIT PROFILE */}
             {activeModal === 'editProfile' && (

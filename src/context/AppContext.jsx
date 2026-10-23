@@ -442,6 +442,31 @@ export function AppProvider({ children }) {
   const [completedTripData, setCompletedTripData] = useState(null);
   const [termsConfirmationBanner, setTermsConfirmationBanner] = useState(null);
 
+  // Saved addresses state (Home, Work, Saved Places)
+  const [savedHomeLoc, setSavedHomeLoc] = useState(() => {
+    try { return localStorage.getItem('ridingo_saved_home') || ''; } catch (_) { return ''; }
+  });
+  const [savedWorkLoc, setSavedWorkLoc] = useState(() => {
+    try { return localStorage.getItem('ridingo_saved_work') || ''; } catch (_) { return ''; }
+  });
+  const [savedPlacesLoc, setSavedPlacesLoc] = useState(() => {
+    try { return localStorage.getItem('ridingo_saved_places') || ''; } catch (_) { return ''; }
+  });
+
+  const updateSavedLocation = (type, value) => {
+    const trimmed = (value || '').trim();
+    if (type === 'home') {
+      setSavedHomeLoc(trimmed);
+      try { localStorage.setItem('ridingo_saved_home', trimmed); } catch (_) {}
+    } else if (type === 'work') {
+      setSavedWorkLoc(trimmed);
+      try { localStorage.setItem('ridingo_saved_work', trimmed); } catch (_) {}
+    } else if (type === 'saved' || type === 'places') {
+      setSavedPlacesLoc(trimmed);
+      try { localStorage.setItem('ridingo_saved_places', trimmed); } catch (_) {}
+    }
+  };
+
   useEffect(() => {
     if (termsConfirmationBanner) {
       const timer = setTimeout(() => {
@@ -913,6 +938,21 @@ export function AppProvider({ children }) {
                     stopActiveTone();
                     // Retain completed trips so History tab displays Completed!
                     setTrips(prev => prev.map(t => (t.id === tripObj.id ? { ...t, ...tripObj, status: 'completed' } : t)));
+                    
+                    const dName = (typeof tripObj.driver === 'string' ? tripObj.driver : tripObj.driver?.name) || tripObj.driverObj?.name || 'Driver';
+                    addNotification(
+                      'Trip Completed! How was your ride?',
+                      `Your trip with ${dName} is complete. Tap to rate your driver and share your experience.`,
+                      'star',
+                      {
+                        category: 'trip_rating',
+                        tripId: tripObj.id,
+                        trip: tripObj,
+                        driverName: dName,
+                        canRate: true
+                      }
+                    );
+
                     // Transition to TripCompleteModal on User App
                     setCompletedTripData(tripObj);
                     setTripCompleteModalOpen(true);
@@ -1129,10 +1169,17 @@ export function AppProvider({ children }) {
           completedAt: details.timestamp || Date.now()
         } : t))
       );
+      const dName = (typeof details?.driver === 'string' ? details.driver : details?.driver?.name) || 'Driver';
       addNotification(
-        'Trip Completed',
-        'Thank you for riding with Ridingo. Your digital invoice has been settled.',
-        'check'
+        'Trip Completed! How was your ride?',
+        `Your ride is complete. Tap to rate your driver and share your experience.`,
+        'star',
+        {
+          category: 'trip_rating',
+          tripId,
+          driverName: dName,
+          canRate: true
+        }
       );
       // Automatic transition to post-trip review and rating modal
       setTrips(currentTrips => {
@@ -1169,6 +1216,21 @@ export function AppProvider({ children }) {
         const found = currentTrips.find(t => t.id === tripId);
         const compTrip = found ? { ...found, ...details, status: 'completed' } : { id: tripId, ...details, status: 'completed' };
         setCompletedTripData(compTrip);
+
+        const dName = (typeof compTrip.driver === 'string' ? compTrip.driver : compTrip.driver?.name) || compTrip.driverObj?.name || 'Driver';
+        addNotification(
+          'Trip Completed! How was your ride?',
+          `Your trip with ${dName} is complete. Tap to rate your driver and share your experience.`,
+          'star',
+          {
+            category: 'trip_rating',
+            tripId,
+            trip: compTrip,
+            driverName: dName,
+            canRate: true
+          }
+        );
+
         return currentTrips;
       });
       setTripCompleteModalOpen(true);
@@ -2458,7 +2520,14 @@ export function AppProvider({ children }) {
         setTermsConfirmationBanner,
         isUpcomingFutureTrip,
         isTripTrackingUnlocked,
-        getTripScheduledTimestamp
+        getTripScheduledTimestamp,
+        savedHomeLoc,
+        setSavedHomeLoc,
+        savedWorkLoc,
+        setSavedWorkLoc,
+        savedPlacesLoc,
+        setSavedPlacesLoc,
+        updateSavedLocation
       }}
     >
       {children}

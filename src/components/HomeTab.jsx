@@ -177,7 +177,14 @@ export default function HomeTab() {
     cancelTripByUser,
     setTripToCancel,
     isUpcomingFutureTrip,
-    isTripTrackingUnlocked
+    isTripTrackingUnlocked,
+    savedHomeLoc,
+    setSavedHomeLoc,
+    savedWorkLoc,
+    setSavedWorkLoc,
+    savedPlacesLoc,
+    setSavedPlacesLoc,
+    updateSavedLocation
   } = useApp();
 
   const unreadCount = (unotes || []).filter(n => !n.read).length;
@@ -207,10 +214,7 @@ export default function HomeTab() {
   });
   const [homeMapTarget, setHomeMapTarget] = useState('drop');
 
-  // Saved locations state
-  const [savedHomeLoc, setSavedHomeLoc] = useState(() => localStorage.getItem('ridingo_saved_home') || '');
-  const [savedWorkLoc, setSavedWorkLoc] = useState(() => localStorage.getItem('ridingo_saved_work') || '');
-  const [savedPlacesLoc, setSavedPlacesLoc] = useState(() => localStorage.getItem('ridingo_saved_places') || '');
+  // Saved locations modal state
   const [addLocationModalType, setAddLocationModalType] = useState(null); // 'home' | 'work' | 'saved' | null
   const [addLocationInput, setAddLocationInput] = useState('');
   const [addLocationSuggestions, setAddLocationSuggestions] = useState([]);
@@ -250,21 +254,13 @@ export default function HomeTab() {
       if (addToast) addToast('Please enter or select an address', 'info');
       return;
     }
-    if (addLocationModalType === 'home') {
-      localStorage.setItem('ridingo_saved_home', val);
-      setSavedHomeLoc(val);
-      setHomeDrop(val);
-      if (addToast) addToast(`Home address saved: ${val}`, 'check');
-    } else if (addLocationModalType === 'work') {
-      localStorage.setItem('ridingo_saved_work', val);
-      setSavedWorkLoc(val);
-      setHomeDrop(val);
-      if (addToast) addToast(`Work address saved: ${val}`, 'check');
-    } else if (addLocationModalType === 'saved') {
-      localStorage.setItem('ridingo_saved_places', val);
-      setSavedPlacesLoc(val);
-      setHomeDrop(val);
-      if (addToast) addToast(`Saved place: ${val}`, 'check');
+    if (updateSavedLocation) {
+      updateSavedLocation(addLocationModalType, val);
+    }
+    setHomeDrop(val);
+    if (addToast) {
+      const typeLabel = addLocationModalType === 'home' ? 'Home' : addLocationModalType === 'work' ? 'Work' : 'Saved place';
+      addToast(`${typeLabel} address saved: ${val}`, 'check');
     }
     setAddLocationModalType(null);
     setAddLocationInput('');
@@ -1839,13 +1835,6 @@ Live GPS Tracking: ${trackUrl}`;
         <div className="home-hero-col-booking">
           {/* HERO BOOKING CARD (Exact Copy of Screenshot Design) */}
           <div className="home-booking-hero-card stagger-3">
-        {/* Top Carousel Pagination Dots (Matching screenshot) */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', marginBottom: '14px', position: 'relative', zIndex: 1 }}>
-          <div style={{ width: '18px', height: '4.5px', borderRadius: '999px', background: '#00D09C' }} />
-          <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#CBD5E1' }} />
-          <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#CBD5E1' }} />
-        </div>
-
         {/* Background Graphic with Map & 3D Car Vector (matching top right of screenshot) */}
         <div className="home-booking-hero-bg">
           <svg width="250" height="150" viewBox="0 0 250 150" fill="none" style={{ position: 'absolute', top: 0, right: 0 }}>
@@ -1870,48 +1859,14 @@ Live GPS Tracking: ${trackUrl}`;
           </svg>
         </div>
 
-        {/* Header: Title, Subtitle, and 'My Location' pill */}
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: '22px', fontWeight: 850, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-              Book a driver
-            </h3>
-            <p style={{ margin: '3px 0 0', fontSize: '13.5px', color: '#64748B', fontWeight: 500 }}>
-              Tell us your trip details
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleHomeUseCurrentLocation}
-            className="home-my-location-pill"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6.5px',
-              background: '#FFFFFF',
-              border: '1.5px solid #00D09C',
-              borderRadius: '999px',
-              padding: '6px 14px',
-              cursor: 'pointer',
-              boxShadow: '0 2px 10px rgba(0, 208, 156, 0.15)',
-              fontSize: '12px',
-              fontWeight: 800,
-              color: '#064E3B',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.18s ease'
-            }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#00D09C" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-              <circle cx="12" cy="12" r="10" />
-              <circle cx="12" cy="12" r="3" fill="#00D09C" />
-              <line x1="12" y1="2" x2="12" y2="6" />
-              <line x1="12" y1="18" x2="12" y2="22" />
-              <line x1="2" y1="12" x2="6" y2="12" />
-              <line x1="18" y1="12" x2="22" y2="12" />
-            </svg>
-            <span style={{ letterSpacing: '-0.01em' }}>{homeIsDetectingCurrent ? 'Locating...' : 'My Location'}</span>
-          </button>
+        {/* Header: Title and Subtitle */}
+        <div style={{ position: 'relative', zIndex: 1, marginBottom: '16px' }}>
+          <h3 style={{ margin: 0, fontSize: '22px', fontWeight: 850, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+            Book a driver
+          </h3>
+          <p style={{ margin: '3px 0 0', fontSize: '13.5px', color: '#64748B', fontWeight: 500 }}>
+            Tell us your trip details
+          </p>
         </div>
 
         {/* Route Fields (Two Separate Capsules with Dashed Connector Line) */}
@@ -1921,8 +1876,8 @@ Live GPS Tracking: ${trackUrl}`;
             className={`home-capsule-input-box ${homeShakingField === 'pickup' ? 'shake-attention' : ''}`}
             style={{ zIndex: homeActiveSuggestField === 'pickup' ? 9999 : 2 }}
           >
-            {/* Turquoise Location Pin */}
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="#00D09C" style={{ flexShrink: 0 }}>
+            {/* Green Location Pin */}
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#10B981" style={{ flexShrink: 0 }}>
               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
             </svg>
 
@@ -1950,14 +1905,14 @@ Live GPS Tracking: ${trackUrl}`;
               />
             </div>
 
-            {/* Plus / Action Icon on Right */}
+            {/* Current Location Minimal Modern Icon on Right */}
             <button
               type="button"
               onClick={handleHomeUseCurrentLocation}
-              title="Locate pickup"
+              title="Use current location"
               style={{
-                width: '28px',
-                height: '28px',
+                width: '30px',
+                height: '30px',
                 borderRadius: '50%',
                 border: '1.5px solid #E2E8F0',
                 background: 'transparent',
@@ -1965,13 +1920,18 @@ Live GPS Tracking: ${trackUrl}`;
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                color: '#64748B',
-                flexShrink: 0
+                color: '#0F172A',
+                flexShrink: 0,
+                transition: 'all 0.18s ease'
               }}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="7" />
+                <circle cx="12" cy="12" r="2.5" fill="currentColor" />
+                <line x1="12" y1="2" x2="12" y2="5" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+                <line x1="2" y1="12" x2="5" y2="12" />
+                <line x1="19" y1="12" x2="22" y2="12" />
               </svg>
             </button>
 
@@ -2016,8 +1976,8 @@ Live GPS Tracking: ${trackUrl}`;
             className={`home-capsule-input-box ${homeShakingField === 'drop' ? 'shake-attention' : ''}`}
             style={{ zIndex: homeActiveSuggestField === 'drop' ? 9999 : 1 }}
           >
-            {/* Dark Location Pin */}
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="#0F172A" style={{ flexShrink: 0 }}>
+            {/* Red Location Pin */}
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#EF4444" style={{ flexShrink: 0 }}>
               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
             </svg>
 
@@ -2045,14 +2005,14 @@ Live GPS Tracking: ${trackUrl}`;
               />
             </div>
 
-            {/* Plus / Choose on map Icon on Right */}
+            {/* Map Picker Minimal Modern Icon on Right */}
             <button
               type="button"
               onClick={() => handleHomeOpenMap('drop')}
               title="Choose on map"
               style={{
-                width: '28px',
-                height: '28px',
+                width: '30px',
+                height: '30px',
                 borderRadius: '50%',
                 border: '1.5px solid #E2E8F0',
                 background: 'transparent',
@@ -2060,13 +2020,15 @@ Live GPS Tracking: ${trackUrl}`;
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                color: '#64748B',
-                flexShrink: 0
+                color: '#0F172A',
+                flexShrink: 0,
+                transition: 'all 0.18s ease'
               }}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+                <line x1="9" y1="3" x2="9" y2="18" />
+                <line x1="15" y1="6" x2="15" y2="21" />
               </svg>
             </button>
 
@@ -2104,7 +2066,7 @@ Live GPS Tracking: ${trackUrl}`;
           </div>
         </div>
 
-        {/* 3 Quick Shortcuts: Home, Work, Saved (Length Rectangle Design) */}
+        {/* 3 Quick Shortcuts: Home, Work, Saved (Clean Black/Monochrome Design) */}
         <div className="home-shortcuts-grid">
           {/* Home */}
           <div
@@ -2131,7 +2093,7 @@ Live GPS Tracking: ${trackUrl}`;
               {!savedHomeLoc ? (
                 <div style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>Add</div>
               ) : (
-                <div style={{ fontSize: '10.5px', color: '#008767', fontWeight: 600, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: '10.5px', color: '#475569', fontWeight: 650, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {savedHomeLoc.split(',')[0]}
                 </div>
               )}
@@ -2163,7 +2125,7 @@ Live GPS Tracking: ${trackUrl}`;
               {!savedWorkLoc ? (
                 <div style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>Add</div>
               ) : (
-                <div style={{ fontSize: '10.5px', color: '#008767', fontWeight: 600, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: '10.5px', color: '#475569', fontWeight: 650, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {savedWorkLoc.split(',')[0]}
                 </div>
               )}
@@ -2184,8 +2146,8 @@ Live GPS Tracking: ${trackUrl}`;
             }}
             title={savedPlacesLoc ? `Set Saved: ${savedPlacesLoc}` : 'Add Saved Place'}
           >
-            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EAB308', flexShrink: 0 }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="#EAB308">
+            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0F172A', flexShrink: 0 }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
               </svg>
             </div>
@@ -2194,7 +2156,7 @@ Live GPS Tracking: ${trackUrl}`;
               {!savedPlacesLoc ? (
                 <div style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>Places</div>
               ) : (
-                <div style={{ fontSize: '10.5px', color: '#008767', fontWeight: 600, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: '10.5px', color: '#475569', fontWeight: 650, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {savedPlacesLoc.split(',')[0]}
                 </div>
               )}
@@ -2202,7 +2164,7 @@ Live GPS Tracking: ${trackUrl}`;
           </div>
         </div>
 
-        {/* CTA Button: Dark Container with 'Book a Driver →' and Teal Action Circle with ↗ */}
+        {/* CTA Button: Dark Container with 'Book a Driver' and Action Circle with ↗ */}
         <button
           type="button"
           onClick={handleHomeBookDriver}
@@ -2211,7 +2173,7 @@ Live GPS Tracking: ${trackUrl}`;
           aria-label="Book a Driver"
         >
           <span style={{ flex: 1, textAlign: 'center', color: '#FFFFFF', fontSize: '16.5px', fontWeight: 800, letterSpacing: '-0.01em', paddingLeft: '24px' }}>
-            Book a Driver <span style={{ marginLeft: '4px' }}>→</span>
+            Book a Driver
           </span>
           <div className="home-book-btn-circle">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
@@ -2220,77 +2182,6 @@ Live GPS Tracking: ${trackUrl}`;
             </svg>
           </div>
         </button>
-          </div>
-        </div>
-
-        {/* Right Column: Trust Assurances, Service Guarantees & Live Perks on Desktop */}
-        <div className="home-hero-col-companion">
-          <div className="home-trust-assurance-card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-              <div style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '12px',
-                background: 'rgba(0, 208, 156, 0.12)',
-                color: '#00D09C',
-                display: 'grid',
-                placeItems: 'center',
-                flexShrink: 0
-              }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <path d="m9 12 2 2 4-4" />
-                </svg>
-              </div>
-              <div>
-                <h4 style={{ margin: 0, fontSize: '15.5px', fontWeight: 800, color: 'var(--ink)' }}>
-                  Verified Professional Drivers
-                </h4>
-                <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: 'var(--muted)' }}>
-                  Background-checked, tested & police-verified chauffeurs
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '14px' }}>
-              <div style={{ background: 'var(--field, #F8FAFC)', borderRadius: '16px', padding: '12px 14px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#00D09C', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Safety Guarantee
-                </div>
-                <div style={{ fontSize: '13.5px', fontWeight: 750, color: 'var(--ink)', marginTop: '2px' }}>
-                  ₹5 Lakh Trip Insurance
-                </div>
-                <div style={{ fontSize: '11.5px', color: 'var(--muted)', marginTop: '2px' }}>
-                  Complimentary protection on every ride
-                </div>
-              </div>
-
-              <div style={{ background: 'var(--field, #F8FAFC)', borderRadius: '16px', padding: '12px 14px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--yellow, #D97706)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Instant Arrival
-                </div>
-                <div style={{ fontSize: '13.5px', fontWeight: 750, color: 'var(--ink)', marginTop: '2px' }}>
-                  At Your Door in 15 Mins
-                </div>
-                <div style={{ fontSize: '11.5px', color: 'var(--muted)', marginTop: '2px' }}>
-                  Track your driver in real-time on live map
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--line, rgba(0,0,0,0.06))' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ display: 'flex', color: '#FFC70A' }}>
-                  {'★'.repeat(5)}
-                </span>
-                <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--ink)' }}>
-                  4.9/5 from 82,000+ car owners
-                </span>
-              </div>
-              <span style={{ fontSize: '12px', fontWeight: 650, color: '#00D09C' }}>
-                Zero Hidden Charges
-              </span>
-            </div>
           </div>
         </div>
       </div>
@@ -3013,37 +2904,7 @@ Live GPS Tracking: ${trackUrl}`;
                   </div>
                 )}
 
-                {/* CATEGORY 2: COMPLETED TRIPS (Rate Driver & Review) */}
-                {completedTrips.length > 0 && (
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', padding: '0 4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.25)' }} />
-                        <span style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--ink)' }}>
-                          Completed Trip
-                        </span>
-                        <span
-                          style={{
-                            fontSize: '10px',
-                            fontWeight: 800,
-                            padding: '2px 8px',
-                            borderRadius: '999px',
-                            background: '#10B981',
-                            color: '#FFFFFF'
-                          }}
-                        >
-                          Rate Driver
-                        </span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {completedTrips.map(renderTripCard)}
-                    </div>
-                  </div>
-                )}
-
-                {/* CATEGORY 3: UPCOMING TRIPS */}
+                {/* CATEGORY 2: UPCOMING TRIPS */}
                 {upcomingTrips.length > 0 && (
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', padding: '0 4px' }}>
