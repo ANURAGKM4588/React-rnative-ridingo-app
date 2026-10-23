@@ -419,13 +419,22 @@ export default function MapPickerModal({ isOpen, onClose, onSelect, targetField 
     onClose();
   };
 
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('map-picker-open');
+      return () => {
+        document.body.classList.remove('map-picker-open');
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
     <div
       className="map-picker-scrim"
       style={{
-        zIndex: 10000,
+        zIndex: 999999,
         background: isDark ? '#0A0A0B' : '#FFFFFF',
         display: 'flex',
         flexDirection: 'column'
@@ -437,7 +446,10 @@ export default function MapPickerModal({ isOpen, onClose, onSelect, targetField 
         style={{
           background: isDark ? '#1C1C1E' : '#FFFFFF',
           borderBottom: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.06)',
-          padding: '12px 18px 14px',
+          paddingTop: 'max(calc(env(safe-area-inset-top, 0px) + 12px), 52px)',
+          paddingBottom: '14px',
+          paddingLeft: '18px',
+          paddingRight: '18px',
           display: 'flex',
           flexDirection: 'column',
           position: 'relative',
@@ -739,8 +751,12 @@ export default function MapPickerModal({ isOpen, onClose, onSelect, targetField 
           borderTopRightRadius: '24px',
           boxShadow: isDark ? '0 -8px 30px rgba(0, 0, 0, 0.45)' : '0 -8px 30px rgba(0, 0, 0, 0.08)',
           borderTop: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.06)',
-          padding: '12px 20px 24px',
-          zIndex: 10
+          paddingTop: '14px',
+          paddingLeft: '20px',
+          paddingRight: '20px',
+          paddingBottom: 'max(calc(env(safe-area-inset-bottom, 0px) + 20px), 26px)',
+          position: 'relative',
+          zIndex: 20
         }}
       >
         {/* Center Drag Handle Bar */}

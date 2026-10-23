@@ -1,11 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import Icon from './Icon';
 
 export default function BottomNav() {
   const { uTab, setUTab, onboardingOpen, bookingOpen, paymentOpen, liveTrackingOpen } = useApp();
+  const [mapPickerActive, setMapPickerActive] = useState(false);
 
-  if (onboardingOpen || bookingOpen || paymentOpen || liveTrackingOpen) return null;
+  useEffect(() => {
+    const updateMapState = () => {
+      const active = Boolean(
+        document.body.classList.contains('map-picker-open') ||
+        document.querySelector('.map-picker-scrim')
+      );
+      setMapPickerActive(active);
+    };
+
+    updateMapState();
+    const observer = new MutationObserver(updateMapState);
+    observer.observe(document.body, { attributes: true, childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
+  if (onboardingOpen || bookingOpen || paymentOpen || liveTrackingOpen || mapPickerActive) return null;
 
   const NAV_ITEMS = [
     { id: 'home', label: 'Home', icon: 'home' },

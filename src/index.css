@@ -990,6 +990,21 @@ body.standalone-app .offer-details-modal-sheet {
 }
 
 /* When any modal, sheet, or popup is open, suppress nav so it NEVER overlaps buttons */
+body:has(.map-picker-scrim) .nav,
+body:has(.map-picker-scrim) #u-nav,
+body:has(.map-picker-scrim) #d-nav,
+body.map-picker-open .nav,
+body.map-picker-open #u-nav,
+body.map-picker-open #d-nav,
+body.standalone-app:has(.map-picker-scrim) .nav,
+body.standalone-app:has(.map-picker-scrim) #u-nav,
+body.standalone-app:has(.map-picker-scrim) #d-nav,
+body.standalone-app.map-picker-open .nav,
+body.standalone-app.map-picker-open #u-nav,
+body.standalone-app.map-picker-open #d-nav,
+body:has(.map-picker-container) .nav,
+body:has(.map-picker-container) #u-nav,
+body:has(.map-picker-container) #d-nav,
 body.standalone-app:has(.incoming-ride-modal) .nav,
 body.standalone-app:has(.layer.on) .nav,
 body.standalone-app:has(.trip-otp-modal) .nav,
@@ -998,11 +1013,12 @@ body.standalone-app:has(.trip-invoice-modal) .nav,
 body.standalone-app:has([role="dialog"]) .nav,
 body.standalone-app:has(.modal-overlay) .nav,
 body.standalone-app:has(.driver-modal-overlay) .nav {
-  z-index: 5 !important;
+  display: none !important;
+  z-index: -1 !important;
   pointer-events: none !important;
   opacity: 0 !important;
   visibility: hidden !important;
-  transform: translateY(100%) !important;
+  transform: translateY(150%) !important;
 }
 
 /* System dark mode when not explicitly forced to light */
@@ -1143,12 +1159,12 @@ body.standalone-app .toasts {
 }
 
 body.standalone-app .map-picker-scrim {
-  padding-top: env(safe-area-inset-top, 24px) !important;
-  z-index: 10001 !important;
+  padding-top: 0 !important;
+  z-index: 999999 !important;
 }
 
 body.standalone-app .map-picker-foot {
-  padding-bottom: calc(env(safe-area-inset-bottom, 16px) + 14px) !important;
+  padding-bottom: max(calc(env(safe-area-inset-bottom, 0px) + 20px), 26px) !important;
 }
 
 .content {
@@ -1162,7 +1178,7 @@ body.standalone-app .map-picker-foot {
   overscroll-behavior-y: contain;
   scroll-behavior: auto;
   touch-action: pan-y;
-  padding: 4px 18px calc(76px + env(safe-area-inset-bottom, 16px));
+  padding: 4px 18px calc(115px + env(safe-area-inset-bottom, 16px)) !important;
   scrollbar-width: none;
 }
 
@@ -6860,11 +6876,14 @@ body[data-theme="dark"] .onboarding-continue-btn {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 20;
-  padding: calc(env(safe-area-inset-top, 16px) + 10px) 18px 12px;
+  z-index: 70;
+  height: auto !important;
+  min-height: calc(max(env(safe-area-inset-top, 0px), 50px) + 54px) !important;
+  padding: max(calc(env(safe-area-inset-top, 0px) + 12px), 54px) 18px 12px !important;
+  box-sizing: border-box !important;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   pointer-events: none;
 }
 
@@ -9135,7 +9154,7 @@ body.standalone-app .nav,
   position: fixed !important;
   left: 50% !important;
   right: auto !important;
-  bottom: calc(env(safe-area-inset-bottom, 10px) + 12px) !important;
+  bottom: max(calc(env(safe-area-inset-bottom, 0px) + 8px), 12px) !important;
   transform: translateX(-50%) !important;
   width: calc(100% - 28px) !important;
   max-width: 520px !important;
@@ -9218,7 +9237,7 @@ body.standalone-app .nv.on {
 #d-content,
 #u-content,
 .content {
-  padding-bottom: calc(env(safe-area-inset-bottom, 10px) + 90px) !important;
+  padding-bottom: calc(env(safe-area-inset-bottom, 16px) + 115px) !important;
 }
 
 @media (min-width: 768px) {
@@ -9364,8 +9383,10 @@ body.standalone-app .nv.on {
   top: 0;
   left: 0;
   right: 0;
-  height: 68px;
-  padding: max(12px, env(safe-area-inset-top, 12px)) 16px 8px;
+  height: auto !important;
+  min-height: calc(max(env(safe-area-inset-top, 0px), 50px) + 54px) !important;
+  padding: max(calc(env(safe-area-inset-top, 0px) + 12px), 54px) 18px 12px !important;
+  box-sizing: border-box !important;
   z-index: 70;
   display: flex;
   align-items: center;
@@ -9469,7 +9490,7 @@ body.standalone-app .nv.on {
 /* Map Route Overlay (Centered responsive stage across all devices) */
 .bk-map-route-layer {
   position: absolute;
-  top: 68px;
+  top: calc(max(env(safe-area-inset-top, 0px), 50px) + 54px) !important;
   left: 0;
   right: 0;
   bottom: 67vh;
@@ -9823,6 +9844,10 @@ body.standalone-app .nv.on {
   padding: calc(6px + 70px * var(--drag-progress, 0)) 20px 110px;
   box-sizing: border-box;
   background: transparent;
+}
+
+.bk-bottom-popup-sheet.expanded .bk-popup-scroll-body {
+  padding-top: calc(max(env(safe-area-inset-top, 0px), 50px) + 66px) !important;
 }
 
 .bk-bottom-popup-sheet.expanded.scroll-ready .bk-popup-scroll-body {
