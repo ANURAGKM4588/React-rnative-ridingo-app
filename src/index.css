@@ -10061,8 +10061,10 @@ body.standalone-app .nv.on {
   border: 1.5px solid #E2E8F0;
   border-radius: 16px;
   padding: 12px 10px;
+  min-height: 118px;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   align-items: flex-start;
   text-align: left;
   cursor: pointer;
@@ -10160,12 +10162,18 @@ body.standalone-app .nv.on {
   color: #0F172A;
 }
 
+.bk-gearbox-bottom-wrap {
+  margin-top: auto;
+  padding-top: 10px;
+  width: 100%;
+}
+
 .bk-gearbox-title {
   font-size: 14.5px;
   font-weight: 800;
   color: #0F172A;
   line-height: 1.2;
-  margin-top: 10px;
+  margin: 0 0 3px 0;
 }
 
 :root[data-theme="dark"] .bk-gearbox-title {
@@ -10176,7 +10184,7 @@ body.standalone-app .nv.on {
   font-size: 11px;
   color: #64748B;
   line-height: 1.35;
-  margin-top: 3px;
+  margin: 0;
 }
 
 :root[data-theme="dark"] .bk-gearbox-desc {

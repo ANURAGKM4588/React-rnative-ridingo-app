@@ -2021,7 +2021,11 @@ export default function BookingSheet() {
                     {
                       id: 'Manual',
                       title: 'Manual',
-                      desc: 'Full control, better mileage',
+                      desc: (
+                        <>
+                          Full control,<br />better mileage
+                        </>
+                      ),
                       icon: (
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                           <line x1="6" y1="5" x2="6" y2="19" />
@@ -2040,13 +2044,17 @@ export default function BookingSheet() {
                     {
                       id: 'Automatic',
                       title: 'Automatic',
-                      desc: 'Smooth & comfortable',
+                      desc: (
+                        <>
+                          Smooth &amp;<br />comfortable
+                        </>
+                      ),
                       icon: (
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21 12a9 9 0 0 0-15.3-6.4L3 8" />
-                          <polyline points="3 3 3 8 8 8" />
-                          <path d="M3 12a9 9 0 0 0 15.3 6.4L21 16" />
-                          <polyline points="21 21 21 16 16 16" />
+                          <path d="M12 4a8 8 0 0 1 7.8 6.2" />
+                          <polyline points="20 6 20 10 16 10" />
+                          <path d="M12 20a8 8 0 0 1-7.8-6.2" />
+                          <polyline points="4 18 4 14 8 14" />
                           <path d="m9 15 3-6 3 6" />
                           <path d="M10 13h4" />
                         </svg>
@@ -2055,11 +2063,15 @@ export default function BookingSheet() {
                     {
                       id: 'IMT',
                       title: 'IMT',
-                      desc: 'Manual feel, clutch-free',
+                      desc: (
+                        <>
+                          Manual feel,<br />clutch-free
+                        </>
+                      ),
                       icon: (
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="3" />
-                          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                          <circle cx="12" cy="12" r="3.2" />
+                          <path d="M10.2 2.8h3.6a1 1 0 0 1 .98.8l.38 1.83a6.8 6.8 0 0 1 1.83 1.06l1.7-.82a1 1 0 0 1 1.25.32l1.8 3.12a1 1 0 0 1-.26 1.27l-1.46 1.21a6.8 6.8 0 0 1 0 2.16l1.46 1.21a1 1 0 0 1 .26 1.27l-1.8 3.12a1 1 0 0 1-1.25.32l-1.7-.82a6.8 6.8 0 0 1-1.83 1.06l-.38 1.83a1 1 0 0 1-.98.8h-3.6a1 1 0 0 1-.98-.8l-.38-1.83a6.8 6.8 0 0 1-1.83-1.06l-1.7.82a1 1 0 0 1-1.25-.32l-1.8-3.12a1 1 0 0 1 .26-1.27l1.46-1.21a6.8 6.8 0 0 1 0-2.16l-1.46-1.21a1 1 0 0 1-.26-1.27l1.8-3.12a1 1 0 0 1 1.25-.32l1.7.82a6.8 6.8 0 0 1 1.83-1.06l.38-1.83a1 1 0 0 1 .98-.8z" />
                         </svg>
                       )
                     }
@@ -2086,8 +2098,10 @@ export default function BookingSheet() {
                           </div>
                         </div>
 
-                        <div className="bk-gearbox-title">{item.title}</div>
-                        <div className="bk-gearbox-desc">{item.desc}</div>
+                        <div className="bk-gearbox-bottom-wrap">
+                          <div className="bk-gearbox-title">{item.title}</div>
+                          <div className="bk-gearbox-desc">{item.desc}</div>
+                        </div>
                       </div>
                     );
                   })}
