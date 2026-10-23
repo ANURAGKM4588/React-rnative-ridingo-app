@@ -6878,8 +6878,8 @@ body[data-theme="dark"] .onboarding-continue-btn {
   right: 0;
   z-index: 70;
   height: auto !important;
-  min-height: calc(max(env(safe-area-inset-top, 0px), 50px) + 54px) !important;
-  padding: max(calc(env(safe-area-inset-top, 0px) + 12px), 54px) 18px 12px !important;
+  min-height: calc(max(env(safe-area-inset-top, 0px), 48px) + 50px) !important;
+  padding: max(calc(env(safe-area-inset-top, 0px) + 8px), 48px) 16px 8px !important;
   box-sizing: border-box !important;
   display: flex;
   align-items: center;
@@ -9384,8 +9384,8 @@ body.standalone-app .nv.on {
   left: 0;
   right: 0;
   height: auto !important;
-  min-height: calc(max(env(safe-area-inset-top, 0px), 50px) + 54px) !important;
-  padding: max(calc(env(safe-area-inset-top, 0px) + 12px), 54px) 18px 12px !important;
+  min-height: calc(max(env(safe-area-inset-top, 0px), 48px) + 50px) !important;
+  padding: max(calc(env(safe-area-inset-top, 0px) + 8px), 48px) 16px 8px !important;
   box-sizing: border-box !important;
   z-index: 70;
   display: flex;
@@ -9490,10 +9490,10 @@ body.standalone-app .nv.on {
 /* Map Route Overlay (Centered responsive stage across all devices) */
 .bk-map-route-layer {
   position: absolute;
-  top: calc(max(env(safe-area-inset-top, 0px), 50px) + 54px) !important;
+  top: calc(max(env(safe-area-inset-top, 0px), 48px) + 50px) !important;
   left: 0;
   right: 0;
-  bottom: 67vh;
+  bottom: 64vh !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -9503,12 +9503,12 @@ body.standalone-app .nv.on {
 
 .bk-map-route-stage {
   position: relative;
-  width: 380px;
-  height: 220px;
-  max-width: 100%;
+  width: 350px;
+  height: 120px;
+  max-width: calc(100% - 24px);
   pointer-events: none;
   opacity: calc(1 - var(--drag-progress, 0) * 1.35);
-  transform: translate3d(0, calc(var(--drag-progress, 0) * -45px), 0) scale(calc(1 - var(--drag-progress, 0) * 0.12));
+  transform: translate3d(0, calc(var(--drag-progress, 0) * -35px), 0) scale(calc(1 - var(--drag-progress, 0) * 0.12));
   transform-origin: center top;
   transition: opacity 0.42s cubic-bezier(0.4, 0, 0.2, 1), transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: opacity, transform;
@@ -9529,46 +9529,47 @@ body.standalone-app .nv.on {
 
 .bk-map-pin-pickup {
   position: absolute;
-  top: 28px;
-  left: 52px;
-  width: 32px;
-  height: 32px;
+  top: 10px;
+  left: 18px;
+  width: 28px;
+  height: 28px;
   z-index: 14;
-  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
 }
 
 .bk-map-callout-pickup {
-  top: 25px;
-  left: 92px;
+  top: 6px;
+  left: 52px;
   z-index: 12;
 }
 
 .bk-map-pin-drop {
   position: absolute;
-  top: 114px;
-  left: 274px;
-  width: 32px;
-  height: 32px;
+  top: 50px;
+  left: 291px;
+  width: 28px;
+  height: 28px;
   z-index: 14;
-  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
 }
 
 .bk-map-callout-drop {
-  top: 154px;
-  left: 215px;
+  top: 56px;
+  right: 64px;
+  left: auto;
   z-index: 12;
 }
 
-@media (max-width: 380px) {
+@media (max-width: 360px) {
   .bk-map-route-stage {
-    transform: scale(0.9);
+    transform: scale(0.92);
     transform-origin: center center;
   }
 }
 
-@media (max-width: 340px) {
+@media (max-width: 320px) {
   .bk-map-route-stage {
-    transform: scale(0.82);
+    transform: scale(0.84);
     transform-origin: center center;
   }
 }
@@ -9586,17 +9587,18 @@ body.standalone-app .nv.on {
   position: absolute;
   background: #FFFFFF;
   border-radius: 12px;
-  padding: 7px 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  padding: 5px 11px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.05);
   border: 1px solid rgba(0, 0, 0, 0.06);
-  max-width: 150px;
+  max-width: 145px;
   pointer-events: auto;
+  box-sizing: border-box;
 }
 
 :root[data-theme="dark"] .bk-map-pin-callout {
   background: #1E293B;
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
 }
 
 /* ========================================================
@@ -9741,14 +9743,14 @@ body.standalone-app .nv.on {
 }
 
 .bk-bottom-popup-sheet.visible {
-  transform: translate3d(0, calc(33vh * (1 - var(--drag-progress, 0))), 0);
-  transform: translate3d(0, calc(33dvh * (1 - var(--drag-progress, 0))), 0);
+  transform: translate3d(0, calc(36vh * (1 - var(--drag-progress, 0))), 0);
+  transform: translate3d(0, calc(36dvh * (1 - var(--drag-progress, 0))), 0);
 }
 
 .booking-fullscreen-view.is-dragging .bk-bottom-popup-sheet {
   transition: none !important;
-  transform: translate3d(0, calc(33vh * (1 - var(--drag-progress, 0))), 0) !important;
-  transform: translate3d(0, calc(33dvh * (1 - var(--drag-progress, 0))), 0) !important;
+  transform: translate3d(0, calc(36vh * (1 - var(--drag-progress, 0))), 0) !important;
+  transform: translate3d(0, calc(36dvh * (1 - var(--drag-progress, 0))), 0) !important;
 }
 
 /* Stage 2: Expanded Full Screen Sheet (Fills the entire full page covering) */
@@ -9764,8 +9766,8 @@ body.standalone-app .nv.on {
 }
 
 .booking-fullscreen-view.is-dragging .bk-bottom-popup-sheet.expanded {
-  transform: translate3d(0, calc(33vh * (1 - var(--drag-progress, 1))), 0) !important;
-  transform: translate3d(0, calc(33dvh * (1 - var(--drag-progress, 1))), 0) !important;
+  transform: translate3d(0, calc(36vh * (1 - var(--drag-progress, 1))), 0) !important;
+  transform: translate3d(0, calc(36dvh * (1 - var(--drag-progress, 1))), 0) !important;
   transition: none !important;
 }
 

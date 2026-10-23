@@ -1588,22 +1588,22 @@ export default function BookingSheet() {
                 <div className="bk-map-route-stage">
                   <svg
                     className="bk-map-route-svg"
-                    viewBox="0 0 380 220"
+                    viewBox="0 0 350 120"
                     preserveAspectRatio="xMidYMid meet"
                   >
                     <defs>
                       <filter id="routeShadow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feDropShadow dx="0" dy="3" stdDeviation="3" floodColor="#000000" floodOpacity="0.45" />
+                        <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" floodColor="#000000" floodOpacity="0.4" />
                       </filter>
                     </defs>
                     {/* Animated Route Trail following the exact path */}
                     {animTrail && (
                       <path
-                        d="M 68 60 C 110 64, 175 102, 222 124 C 245 134, 268 142, 290 146"
+                        d="M 32 36 C 85 44, 165 72, 225 78 C 255 81, 280 80, 305 76"
                         pathLength="100"
                         fill="none"
                         stroke={isDarkMode ? '#FFFFFF' : '#000000'}
-                        strokeWidth="5"
+                        strokeWidth="4.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         filter="url(#routeShadow)"
@@ -1612,10 +1612,10 @@ export default function BookingSheet() {
                     )}
                   </svg>
 
-                  {/* 1. Sequentially displayed Pickup Standard Location Pin Icon (tip at 68, 60) */}
+                  {/* 1. Sequentially displayed Pickup Standard Location Pin Icon (tip at 32, 36) */}
                   {animPickupPin && (
                     <div className="anim-bounce-in bk-map-pin-pickup">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill={isDarkMode ? '#FFFFFF' : '#000000'}>
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill={isDarkMode ? '#FFFFFF' : '#000000'}>
                         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
                       </svg>
                     </div>
@@ -1631,16 +1631,16 @@ export default function BookingSheet() {
                     </div>
                   )}
 
-                  {/* 3. Destination Standard Location Pin Icon milliseconds later (tip at 290, 146) */}
+                  {/* 3. Destination Standard Location Pin Icon (tip at 305, 76) */}
                   {animDropPin && (
                     <div className="anim-bounce-in bk-map-pin-drop">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill={isDarkMode ? '#FFFFFF' : '#000000'}>
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill={isDarkMode ? '#FFFFFF' : '#000000'}>
                         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
                       </svg>
                     </div>
                   )}
 
-                  {/* 4. Followed by Destination Location Callout Badge milliseconds later (Bottom with small spacing) */}
+                  {/* 4. Followed by Destination Location Callout Badge (Beside destination pin to the left) */}
                   {animDropBox && (
                     <div className="bk-map-pin-callout anim-bounce-in bk-map-callout-drop">
                       <div className="bk-map-callout-type">Destination</div>
