@@ -331,6 +331,8 @@ export default function BookingSheet() {
       target.closest('.bk-date-nav-btn') ||
       target.closest('.bk-date-month-pill') ||
       target.closest('.bk-gearbox-pill-btn') ||
+      target.closest('.bk-ref-gearbox-card') ||
+      target.closest('.bk-ref-flight-input-tab') ||
       target.closest('.bk-ref-pay-capsule') ||
       target.closest('.bk-map-round-btn')
     );
@@ -1770,42 +1772,78 @@ export default function BookingSheet() {
 
                 {/* Driver Duration & Pickup Time side by side (Half & Half) */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
-                  {/* Left Half: Driver duration */}
+                  {/* Left Half: Driver duration OR Flight Number (if Airport ride) */}
                   <div style={{ minWidth: 0 }}>
-                    <div className="bk-ref-duration-header" style={{ marginBottom: '8px' }}>
-                      <div className="bk-ref-section-title" style={{ margin: 0, fontSize: '14px' }}>
-                        Driver duration
-                      </div>
-                    </div>
+                    {cat === 'airport' ? (
+                      <>
+                        <div className="bk-ref-duration-header" style={{ marginBottom: '8px' }}>
+                          <div className="bk-ref-section-title" style={{ margin: 0, fontSize: '14px' }}>
+                            Flight number
+                          </div>
+                        </div>
 
-                    <div className="bk-ref-duration-stepper" style={{ marginBottom: 0 }}>
-                      <button
-                        type="button"
-                        className="bk-ref-step-btn minus"
-                        onClick={() => handleQtyChange(-1)}
-                        disabled={qty <= (currentCat.min || 1)}
-                        aria-label="Decrease hours"
-                      >
-                        <Icon name="minus" size={15} />
-                      </button>
-                      <div className="bk-ref-step-center">
-                        <div className="bk-ref-step-val" style={{ fontSize: '14px' }}>
-                          {qty} {qty === 1 ? currentCat.unit : currentCat.units}
+                        <div className="bk-ref-flight-input-tab">
+                          <div className="bk-ref-flight-icon-wrap">
+                            <Icon name="plane" size={16} />
+                          </div>
+                          <input
+                            type="text"
+                            className="bk-ref-flight-input"
+                            value={flightNo}
+                            onChange={(e) => setFlightNo(e.target.value.toUpperCase())}
+                            placeholder="e.g. 6E 2145"
+                            aria-label="Enter Flight Number"
+                          />
+                          {flightNo && (
+                            <button
+                              type="button"
+                              className="bk-ref-flight-clear-btn"
+                              onClick={() => setFlightNo('')}
+                              aria-label="Clear flight number"
+                            >
+                              <Icon name="x" size={13} />
+                            </button>
+                          )}
                         </div>
-                        <div className="bk-ref-step-min" style={{ fontSize: '10.5px' }}>
-                          Min {currentCat.min || 3}h
+                      </>
+                    ) : (
+                      <>
+                        <div className="bk-ref-duration-header" style={{ marginBottom: '8px' }}>
+                          <div className="bk-ref-section-title" style={{ margin: 0, fontSize: '14px' }}>
+                            Driver duration
+                          </div>
                         </div>
-                      </div>
-                      <button
-                        type="button"
-                        className="bk-ref-step-btn plus"
-                        onClick={() => handleQtyChange(1)}
-                        disabled={qty >= (currentCat.max || 12)}
-                        aria-label="Increase hours"
-                      >
-                        <Icon name="plus" size={15} />
-                      </button>
-                    </div>
+
+                        <div className="bk-ref-duration-stepper" style={{ marginBottom: 0 }}>
+                          <button
+                            type="button"
+                            className="bk-ref-step-btn minus"
+                            onClick={() => handleQtyChange(-1)}
+                            disabled={qty <= (currentCat.min || 1)}
+                            aria-label="Decrease hours"
+                          >
+                            <Icon name="minus" size={15} />
+                          </button>
+                          <div className="bk-ref-step-center">
+                            <div className="bk-ref-step-val" style={{ fontSize: '14px' }}>
+                              {qty} {qty === 1 ? currentCat.unit : currentCat.units}
+                            </div>
+                            <div className="bk-ref-step-min" style={{ fontSize: '10.5px' }}>
+                              Min {currentCat.min || 3}h
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="bk-ref-step-btn plus"
+                            onClick={() => handleQtyChange(1)}
+                            disabled={qty >= (currentCat.max || 12)}
+                            aria-label="Increase hours"
+                          >
+                            <Icon name="plus" size={15} />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Right Half: Pickup time (same design as duration setter) */}
