@@ -134,9 +134,12 @@ function MainApp() {
           }
           setLiveTrackingOpen(true);
         }
+        if (p.get('booking') === 'true') {
+          setBookingOpen(true);
+        }
       }
     } catch (e) {}
-  }, [setLiveTrackingOpen, setActiveTrackingTripId, trips]);
+  }, [setLiveTrackingOpen, setActiveTrackingTripId, setBookingOpen, trips]);
 
   React.useEffect(() => {
     // Graceful fade-out of the App Refresh Splash Screen

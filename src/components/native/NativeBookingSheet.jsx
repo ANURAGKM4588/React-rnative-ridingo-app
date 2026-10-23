@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import NativeIcon from './NativeIcon';
+import TripTypeRow from './TripTypeRow';
 import { LightTheme, DarkTheme, Typography, Radii, Shadows } from '../../styles/theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -32,6 +33,7 @@ export default function NativeBookingSheet({
 }) {
   const theme = isDark ? DarkTheme : LightTheme;
 
+  const [activeCategory, setActiveCategory] = useState(category);
   const [pickup, setPickup] = useState('Current Location (GPS)');
   const [destination, setDestination] = useState(initialDestination || '');
   const [selectedVehicle, setSelectedVehicle] = useState('sedan');
@@ -93,6 +95,14 @@ export default function NativeBookingSheet({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollBody}>
+            {/* Trip Type Animated Row */}
+            <TripTypeRow
+              selectedId={activeCategory}
+              onSelect={setActiveCategory}
+              isDark={isDark}
+              containerStyle={{ marginBottom: 14 }}
+            />
+
             {/* Location Fields */}
             <View style={[styles.inputGroup, { backgroundColor: theme.field }]}>
               {/* Pickup */}

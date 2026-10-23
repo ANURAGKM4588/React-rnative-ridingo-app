@@ -9434,7 +9434,7 @@ body.standalone-app .nv.on {
   top: 68px;
   left: 0;
   right: 0;
-  bottom: 48vh;
+  bottom: 72vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -9682,14 +9682,14 @@ body.standalone-app .nv.on {
 }
 
 .bk-bottom-popup-sheet.visible {
-  transform: translate3d(0, calc(52vh * (1 - var(--drag-progress, 0))), 0);
-  transform: translate3d(0, calc(52dvh * (1 - var(--drag-progress, 0))), 0);
+  transform: translate3d(0, calc(28vh * (1 - var(--drag-progress, 0))), 0);
+  transform: translate3d(0, calc(28dvh * (1 - var(--drag-progress, 0))), 0);
 }
 
 .booking-fullscreen-view.is-dragging .bk-bottom-popup-sheet {
   transition: none !important;
-  transform: translate3d(0, calc(52vh * (1 - var(--drag-progress, 0))), 0) !important;
-  transform: translate3d(0, calc(52dvh * (1 - var(--drag-progress, 0))), 0) !important;
+  transform: translate3d(0, calc(28vh * (1 - var(--drag-progress, 0))), 0) !important;
+  transform: translate3d(0, calc(28dvh * (1 - var(--drag-progress, 0))), 0) !important;
 }
 
 /* Stage 2: Expanded Full Screen Sheet (Fills the entire full page covering) */
@@ -9705,8 +9705,8 @@ body.standalone-app .nv.on {
 }
 
 .booking-fullscreen-view.is-dragging .bk-bottom-popup-sheet.expanded {
-  transform: translate3d(0, calc(52vh * (1 - var(--drag-progress, 1))), 0) !important;
-  transform: translate3d(0, calc(52dvh * (1 - var(--drag-progress, 1))), 0) !important;
+  transform: translate3d(0, calc(28vh * (1 - var(--drag-progress, 1))), 0) !important;
+  transform: translate3d(0, calc(28dvh * (1 - var(--drag-progress, 1))), 0) !important;
   transition: none !important;
 }
 
@@ -10370,13 +10370,22 @@ body.standalone-app .nv.on {
   width: 100%;
   background: #0F172A;
   border-radius: 999px;
-  padding: 10px 12px 10px 22px;
+  padding: 8px 10px 8px 24px;
+  min-height: 58px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #FFFFFF;
+  cursor: pointer;
+  user-select: none;
+  box-sizing: border-box;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bk-ref-pay-capsule:active {
+  transform: scale(0.985);
 }
 
 :root[data-theme="dark"] .bk-ref-pay-capsule {
@@ -10385,50 +10394,13 @@ body.standalone-app .nv.on {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
 }
 
-.bk-ref-pay-left {
-  display: flex;
-  flex-direction: column;
-}
-
-.bk-ref-pay-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
-  line-height: 1.1;
-}
-
-.bk-ref-pay-val {
-  font-size: 24px;
-  font-weight: 900;
-  color: #FFFFFF;
-  line-height: 1.1;
-  margin-top: 2px;
-  font-family: var(--font-display);
-}
-
-.bk-ref-pay-divider {
-  width: 1px;
-  height: 32px;
-  background: rgba(255, 255, 255, 0.18);
-  margin: 0 16px;
-}
-
-.bk-ref-pay-btn-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: #FFFFFF;
-  padding: 0;
-}
-
-.bk-ref-pay-text {
-  font-size: 15px;
+.bk-ref-pay-single-line {
+  font-size: 16.5px;
   font-weight: 750;
   color: #FFFFFF;
   letter-spacing: -0.01em;
+  font-family: var(--font-display, inherit);
+  white-space: nowrap;
 }
 
 .bk-ref-pay-arrow-btn {
@@ -10441,11 +10413,15 @@ body.standalone-app .nv.on {
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  transition: transform 0.12s ease;
+  transition: transform 0.15s ease;
   flex-shrink: 0;
 }
 
-.bk-ref-pay-arrow-btn:active {
+.bk-ref-pay-capsule:hover .bk-ref-pay-arrow-btn {
+  transform: translateX(2px);
+}
+
+.bk-ref-pay-capsule:active .bk-ref-pay-arrow-btn {
   transform: scale(0.92);
 }
 

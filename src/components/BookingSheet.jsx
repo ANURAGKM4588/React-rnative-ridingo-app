@@ -387,7 +387,7 @@ export default function BookingSheet() {
       return;
     }
 
-    const maxTravel = Math.max(window.innerHeight * 0.52, 280);
+    const maxTravel = Math.max(window.innerHeight * 0.28, 180);
     let progress = isSheetExpanded ? 1 - (deltaY / maxTravel) : (-deltaY / maxTravel);
     progress = Math.max(0, Math.min(1, progress));
 
@@ -478,7 +478,7 @@ export default function BookingSheet() {
       if (e.cancelable) e.preventDefault();
     }
 
-    const maxTravel = Math.max(window.innerHeight * 0.52, 280);
+    const maxTravel = Math.max(window.innerHeight * 0.28, 180);
     let progress = isSheetExpanded ? 1 - (deltaY / maxTravel) : (-deltaY / maxTravel);
     progress = Math.max(0, Math.min(1, progress));
 
@@ -2367,31 +2367,29 @@ export default function BookingSheet() {
             {/* Static Bottom Action Bar (Fixed at bottom of screen, completely static, 0 frame jumps) */}
             {showPopupSheet && (
               <div className="bk-static-footer">
-                <div className="bk-ref-pay-capsule">
-                  <div className="bk-ref-pay-left">
-                    <span className="bk-ref-pay-label">Pay Now (30%)</span>
-                    <span className="bk-ref-pay-val">₹{adv}</span>
-                  </div>
-
-                  <div className="bk-ref-pay-divider" />
-
-                  <button
-                    type="button"
-                    className="bk-ref-pay-btn-group"
-                    id="bk-ref-submit-btn"
-                    onClick={() => {
+                <div
+                  className="bk-ref-pay-capsule"
+                  onClick={() => handleSubmit()}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
                       handleSubmit();
-                    }}
-                    aria-label="Pay Now"
-                  >
-                    <span className="bk-ref-pay-text">Pay Now &rarr;</span>
-                    <div className="bk-ref-pay-arrow-btn">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14" />
-                        <path d="m12 5 7 7-7 7" />
-                      </svg>
-                    </div>
-                  </button>
+                    }
+                  }}
+                  aria-label={`Pay Now (30%) ₹${adv}`}
+                >
+                  <span className="bk-ref-pay-single-line">
+                    Pay Now (30%) ₹{adv}
+                  </span>
+
+                  <div className="bk-ref-pay-arrow-btn" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12h14" />
+                      <path d="m12 5 7 7-7 7" />
+                    </svg>
+                  </div>
                 </div>
               </div>
             )}
