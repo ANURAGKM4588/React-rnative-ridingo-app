@@ -184,8 +184,11 @@ export default function HomeTab() {
     setSavedWorkLoc,
     savedPlacesLoc,
     setSavedPlacesLoc,
-    updateSavedLocation
+    updateSavedLocation,
+    userThemeVal
   } = useApp();
+
+  const isDark = userThemeVal === 'dark';
 
   const unreadCount = (unotes || []).filter(n => !n.read).length;
 
@@ -1839,19 +1842,19 @@ Live GPS Tracking: ${trackUrl}`;
         <div className="home-booking-hero-bg">
           <svg width="250" height="150" viewBox="0 0 250 150" fill="none" style={{ position: 'absolute', top: 0, right: 0 }}>
             {/* Soft Map Street Grid Lines */}
-            <path d="M40 20 L250 10 M10 65 L250 45 M60 140 L250 110 M120 0 L190 150 M40 30 L90 150" stroke="#EEF2F6" strokeWidth="2.5" />
-            <path d="M80 0 L150 150 M190 0 L250 100" stroke="#EEF2F6" strokeWidth="2" />
+            <path d="M40 20 L250 10 M10 65 L250 45 M60 140 L250 110 M120 0 L190 150 M40 30 L90 150" stroke={isDark ? 'rgba(255, 255, 255, 0.08)' : '#EEF2F6'} strokeWidth="2.5" />
+            <path d="M80 0 L150 150 M190 0 L250 100" stroke={isDark ? 'rgba(255, 255, 255, 0.08)' : '#EEF2F6'} strokeWidth="2" />
             {/* Vibrant Turquoise GPS Path Line */}
-            <path d="M165 44 Q 192 54, 250 72" stroke="#00D09C" strokeWidth="3.5" strokeLinecap="round" fill="none" opacity="0.9" />
-            {/* Modern 3D Isometric White Car Graphic */}
+            <path d="M165 44 Q 192 54, 250 72" stroke="#00D09C" strokeWidth="3.5" strokeLinecap="round" fill="none" opacity={isDark ? 0.7 : 0.9} />
+            {/* Modern 3D Isometric Car Graphic */}
             <g transform="translate(142, 34) scale(0.68) rotate(22)">
-              <rect x="0" y="8" width="56" height="24" rx="9" fill="#CBD5E1" />
-              <rect x="2" y="6" width="52" height="24" rx="8" fill="#FFFFFF" filter="drop-shadow(0 4px 6px rgba(0,0,0,0.18))" />
+              <rect x="0" y="8" width="56" height="24" rx="9" fill={isDark ? '#334155' : '#CBD5E1'} />
+              <rect x="2" y="6" width="52" height="24" rx="8" fill={isDark ? '#1E293B' : '#FFFFFF'} filter="drop-shadow(0 4px 6px rgba(0,0,0,0.18))" />
               {/* Windshield & windows */}
-              <rect x="12" y="9" width="30" height="18" rx="4" fill="#0F172A" />
-              <rect x="16" y="11" width="22" height="14" rx="3" fill="#38BDF8" opacity="0.65" />
+              <rect x="12" y="9" width="30" height="18" rx="4" fill={isDark ? '#020617' : '#0F172A'} />
+              <rect x="16" y="11" width="22" height="14" rx="3" fill="#38BDF8" opacity={isDark ? 0.5 : 0.65} />
               {/* Roof */}
-              <rect x="19" y="11" width="16" height="14" rx="2" fill="#FFFFFF" />
+              <rect x="19" y="11" width="16" height="14" rx="2" fill={isDark ? '#334155' : '#FFFFFF'} />
               {/* Headlights */}
               <circle cx="53" cy="11" r="2.5" fill="#FDE047" />
               <circle cx="53" cy="25" r="2.5" fill="#FDE047" />
@@ -1861,26 +1864,26 @@ Live GPS Tracking: ${trackUrl}`;
 
         {/* Header: Title and Subtitle */}
         <div style={{ position: 'relative', zIndex: 1, marginBottom: '16px' }}>
-          <h3 style={{ margin: 0, fontSize: '22px', fontWeight: 850, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+          <h3 style={{ margin: 0, fontSize: '22px', fontWeight: 850, color: isDark ? '#FFFFFF' : '#0F172A', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
             Book a driver
           </h3>
-          <p style={{ margin: '3px 0 0', fontSize: '13.5px', color: '#64748B', fontWeight: 500 }}>
+          <p style={{ margin: '3px 0 0', fontSize: '13.5px', color: isDark ? '#94A3B8' : '#64748B', fontWeight: 500 }}>
             Tell us your trip details
           </p>
         </div>
 
         {/* Route Fields (Two Separate Capsules with Dashed Connector Line) */}
         <div style={{ position: 'relative', zIndex: 1, marginBottom: '14px' }}>
-          {/* Top-layer Continuous Dashed Route Line connecting Pickup to Destination */}
+          {/* Top-layer Continuous Dashed Route Line connecting Pickup to Destination (with neat gap spacing from pins) */}
           <div
             aria-hidden="true"
             style={{
               position: 'absolute',
               left: '24px',
-              top: '36px',
-              bottom: '36px',
+              top: '43px',
+              bottom: '43px',
               width: 0,
-              borderLeft: '2.2px dashed #94A3B8',
+              borderLeft: isDark ? '2.2px dashed #94A3B8' : '2.2px dashed #94A3B8',
               zIndex: 10,
               pointerEvents: 'none'
             }}
@@ -1897,7 +1900,7 @@ Live GPS Tracking: ${trackUrl}`;
             </svg>
 
             <div style={{ flex: 1, minWidth: 0 }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', fontWeight: 600, marginBottom: '1px' }} htmlFor="home-pickup">
+              <label style={{ display: 'block', fontSize: '11px', color: isDark ? '#94A3B8' : '#64748B', fontWeight: 600, marginBottom: '1px' }} htmlFor="home-pickup">
                 Pickup location
               </label>
               <input
@@ -1911,7 +1914,7 @@ Live GPS Tracking: ${trackUrl}`;
                   padding: 0,
                   fontSize: '14.5px',
                   fontWeight: 600,
-                  color: '#0F172A'
+                  color: isDark ? '#FFFFFF' : '#0F172A'
                 }}
                 placeholder="Where should we meet you?"
                 value={homePickup}
@@ -1929,13 +1932,13 @@ Live GPS Tracking: ${trackUrl}`;
                 width: '30px',
                 height: '30px',
                 borderRadius: '50%',
-                border: '1.5px solid #E2E8F0',
+                border: isDark ? '1.5px solid rgba(255, 255, 255, 0.15)' : '1.5px solid #E2E8F0',
                 background: 'transparent',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                color: '#0F172A',
+                color: isDark ? '#FFFFFF' : '#0F172A',
                 flexShrink: 0,
                 transition: 'all 0.18s ease'
               }}
@@ -1965,19 +1968,19 @@ Live GPS Tracking: ${trackUrl}`;
                       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
                     </svg>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '14px', color: '#202124', lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: '14px', color: isDark ? '#FFFFFF' : '#202124', lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {highlightMatchGoogleStock(item.title, homePickup)}
                       </div>
                       {item.sub && (
-                        <div style={{ fontSize: '12px', color: '#70757a', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>
+                        <div style={{ fontSize: '12px', color: isDark ? '#94A3B8' : '#70757a', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>
                           {item.sub}
                         </div>
                       )}
                     </div>
                   </button>
                 ))}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '6px 14px', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-                  <span style={{ fontSize: '11px', color: '#70757a', marginRight: '4px' }}>powered by Google</span>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '6px 14px', borderTop: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)' }}>
+                  <span style={{ fontSize: '11px', color: isDark ? '#94A3B8' : '#70757a', marginRight: '4px' }}>powered by Google</span>
                 </div>
               </div>
             )}
@@ -1994,7 +1997,7 @@ Live GPS Tracking: ${trackUrl}`;
             </svg>
 
             <div style={{ flex: 1, minWidth: 0 }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', fontWeight: 600, marginBottom: '1px' }} htmlFor="home-drop">
+              <label style={{ display: 'block', fontSize: '11px', color: isDark ? '#94A3B8' : '#64748B', fontWeight: 600, marginBottom: '1px' }} htmlFor="home-drop">
                 Destination location
               </label>
               <input
@@ -2008,7 +2011,7 @@ Live GPS Tracking: ${trackUrl}`;
                   padding: 0,
                   fontSize: '14.5px',
                   fontWeight: 600,
-                  color: '#0F172A'
+                  color: isDark ? '#FFFFFF' : '#0F172A'
                 }}
                 placeholder="Where are you heading to?"
                 value={homeDrop}
@@ -2026,13 +2029,13 @@ Live GPS Tracking: ${trackUrl}`;
                 width: '30px',
                 height: '30px',
                 borderRadius: '50%',
-                border: '1.5px solid #E2E8F0',
+                border: isDark ? '1.5px solid rgba(255, 255, 255, 0.15)' : '1.5px solid #E2E8F0',
                 background: 'transparent',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                color: '#0F172A',
+                color: isDark ? '#FFFFFF' : '#0F172A',
                 flexShrink: 0,
                 transition: 'all 0.18s ease'
               }}
@@ -2094,18 +2097,18 @@ Live GPS Tracking: ${trackUrl}`;
             }}
             title={savedHomeLoc ? `Set Home: ${savedHomeLoc}` : 'Add Home Location'}
           >
-            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0F172A', flexShrink: 0 }}>
+            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: isDark ? '#18181B' : '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isDark ? '#FFFFFF' : '#0F172A', flexShrink: 0 }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                 <polyline points="9 22 9 12 15 12 15 22" />
               </svg>
             </div>
             <div style={{ minWidth: 0, overflow: 'hidden', flex: 1 }}>
-              <div style={{ fontSize: '13px', fontWeight: 750, color: '#0F172A', lineHeight: 1.2 }}>Home</div>
+              <div style={{ fontSize: '13px', fontWeight: 750, color: isDark ? '#FFFFFF' : '#0F172A', lineHeight: 1.2 }}>Home</div>
               {!savedHomeLoc ? (
-                <div style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>Add</div>
+                <div style={{ fontSize: '11px', color: isDark ? '#94A3B8' : '#64748B', lineHeight: 1.2 }}>Add</div>
               ) : (
-                <div style={{ fontSize: '10.5px', color: '#475569', fontWeight: 650, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: '10.5px', color: isDark ? '#CBD5E1' : '#475569', fontWeight: 650, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {savedHomeLoc.split(',')[0]}
                 </div>
               )}
@@ -2126,18 +2129,18 @@ Live GPS Tracking: ${trackUrl}`;
             }}
             title={savedWorkLoc ? `Set Work: ${savedWorkLoc}` : 'Add Work Location'}
           >
-            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0F172A', flexShrink: 0 }}>
+            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: isDark ? '#18181B' : '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isDark ? '#FFFFFF' : '#0F172A', flexShrink: 0 }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="20" height="14" x="2" y="7" rx="2" ry="2" />
                 <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
               </svg>
             </div>
             <div style={{ minWidth: 0, overflow: 'hidden', flex: 1 }}>
-              <div style={{ fontSize: '13px', fontWeight: 750, color: '#0F172A', lineHeight: 1.2 }}>Work</div>
+              <div style={{ fontSize: '13px', fontWeight: 750, color: isDark ? '#FFFFFF' : '#0F172A', lineHeight: 1.2 }}>Work</div>
               {!savedWorkLoc ? (
-                <div style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>Add</div>
+                <div style={{ fontSize: '11px', color: isDark ? '#94A3B8' : '#64748B', lineHeight: 1.2 }}>Add</div>
               ) : (
-                <div style={{ fontSize: '10.5px', color: '#475569', fontWeight: 650, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: '10.5px', color: isDark ? '#CBD5E1' : '#475569', fontWeight: 650, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {savedWorkLoc.split(',')[0]}
                 </div>
               )}
@@ -2158,17 +2161,17 @@ Live GPS Tracking: ${trackUrl}`;
             }}
             title={savedPlacesLoc ? `Set Saved: ${savedPlacesLoc}` : 'Add Saved Place'}
           >
-            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0F172A', flexShrink: 0 }}>
+            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: isDark ? '#18181B' : '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isDark ? '#FFFFFF' : '#0F172A', flexShrink: 0 }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
               </svg>
             </div>
             <div style={{ minWidth: 0, overflow: 'hidden', flex: 1 }}>
-              <div style={{ fontSize: '13px', fontWeight: 750, color: '#0F172A', lineHeight: 1.2 }}>Saved</div>
+              <div style={{ fontSize: '13px', fontWeight: 750, color: isDark ? '#FFFFFF' : '#0F172A', lineHeight: 1.2 }}>Saved</div>
               {!savedPlacesLoc ? (
-                <div style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.2 }}>Places</div>
+                <div style={{ fontSize: '11px', color: isDark ? '#94A3B8' : '#64748B', lineHeight: 1.2 }}>Places</div>
               ) : (
-                <div style={{ fontSize: '10.5px', color: '#475569', fontWeight: 650, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: '10.5px', color: isDark ? '#CBD5E1' : '#475569', fontWeight: 650, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {savedPlacesLoc.split(',')[0]}
                 </div>
               )}
